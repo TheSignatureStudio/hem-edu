@@ -1,5 +1,6 @@
 -- attendance 테이블의 service_type CHECK 제약 조건 제거
--- service_types 테이블의 값을 자유롭게 사용할 수 있도록 함
+-- 이 파일을 직접 실행하여 수정할 수 있습니다:
+-- npx wrangler d1 execute hem-edu-db --remote --file=./fix_attendance_service_type.sql
 
 -- 기존 테이블 백업
 CREATE TABLE attendance_backup AS SELECT * FROM attendance;
