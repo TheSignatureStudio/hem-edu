@@ -203,8 +203,32 @@ attendance.post('/bulk', async (c) => {
   return c.json({ message: 'Bulk attendance recorded' });
   } catch (error: any) {
     console.error('Bulk attendance error:', error);
-    const errorMessage = error?.message || 'Internal server error';
-    return c.json({ error: errorMessage }, 500);
+    console.error('Error details:', {
+      message: error?.message,
+      cause: error?.cause,
+      stack: error?.stack,
+      name: error?.name
+    });
+    
+    // 데이터베이스 제약 조건 에러인 경우 더 자세한 정보 제공
+    let errorMessage = 'Internal server error';
+    if (error?.message) {
+      errorMessage = error.message;
+      // CHECK constraint 에러인 경우
+      if (error.message.includes('CHECK constraint')) {
+        errorMessage = `데이터베이스 제약 조건 오류: ${error.message}. 시스템 설정에서 예배 구분을 확인해주세요.`;
+      } else if (error.message.includes('UNIQUE constraint')) {
+        errorMessage = `중복된 출석 기록입니다: ${error.message}`;
+      } else if (error.message.includes('FOREIGN KEY constraint')) {
+        errorMessage = `잘못된 데이터입니다: ${error.message}`;
+      }
+    }
+    
+    return c.json({ 
+      error: errorMessage,
+      details: error?.message,
+      type: error?.name || 'DatabaseError'
+    }, 500);
   }
 });
 

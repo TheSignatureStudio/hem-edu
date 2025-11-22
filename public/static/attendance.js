@@ -314,6 +314,10 @@ const AttendanceModule = {
       let errorMessage = '출석 저장에 실패했습니다.';
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
+        // 서버에서 전달된 상세 정보가 있으면 표시
+        if (error.response.data.details) {
+          console.error('Server error details:', error.response.data.details);
+        }
       } else if (error.message) {
         errorMessage = error.message;
       }
