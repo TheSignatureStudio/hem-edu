@@ -39,12 +39,17 @@ members.get('/', requireDepartmentAccess, async (c) => {
       } else if (department_id) {
         query += ' AND m.department_id = ?';
         params.push(Number(department_id));
+      } else {
+        // userDepartmentId가 없고 department_id도 없으면 빈 결과 반환
+        // (부서가 할당되지 않은 사용자는 자신의 부서 학생만 볼 수 있음)
+        query += ' AND 1=0'; // 항상 false 조건으로 빈 결과 반환
       }
-      // userDepartmentId가 없으면 빈 결과 반환 (부서가 할당되지 않은 사용자)
     } else if (department_id) {
+      // 최고관리자는 특정 부서 필터링 가능
       query += ' AND m.department_id = ?';
       params.push(Number(department_id));
     }
+    // 최고관리자이고 department_id가 없으면 모든 부서 학생 조회
     
     if (status) {
       query += ' AND m.member_status = ?';
@@ -75,7 +80,17 @@ members.get('/', requireDepartmentAccess, async (c) => {
     return c.json({ members: results || [] });
   } catch (error: any) {
     console.error('Get members error:', error);
-    return c.json({ error: error?.message || 'Internal server error', members: [] }, 500);
+    console.error('Error details:', {
+      message: error?.message,
+      cause: error?.cause,
+      name: error?.name,
+      stack: error?.stack
+    });
+    return c.json({ 
+      error: error?.message || 'Internal server error', 
+      members: [],
+      details: error?.message
+    }, 500);
   }
 });
 

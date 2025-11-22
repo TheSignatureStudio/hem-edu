@@ -24,7 +24,26 @@ const MembersModule = {
       this.renderMembersList();
     } catch (error) {
       console.error('Load members error:', error);
-      showToast('학생 목록을 불러오는데 실패했습니다.', 'error');
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
+      
+      let errorMessage = '학생 목록을 불러오는데 실패했습니다.';
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showToast(errorMessage, 'error');
+      
+      // 에러가 발생해도 빈 목록으로 표시
+      this.currentMembers = error.response?.data?.members || [];
+      this.departments = [];
+      this.renderMembersList();
     }
   },
   
