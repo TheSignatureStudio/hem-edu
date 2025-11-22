@@ -12,9 +12,12 @@ members.get('/', async (c) => {
     let query = `
       SELECT 
         m.*,
-        f.family_name
+        f.family_name,
+        c.name as class_name,
+        c.grade_level
       FROM members m
       LEFT JOIN families f ON m.family_id = f.id
+      LEFT JOIN classes c ON m.class_id = c.id
       WHERE 1=1
     `;
     const params: any[] = [];
@@ -92,9 +95,13 @@ members.get('/:id', async (c) => {
     const member = await db.prepare(`
       SELECT 
         m.*,
-        f.family_name
+        f.family_name,
+        c.name as class_name,
+        c.grade_level,
+        c.teacher_name
       FROM members m
       LEFT JOIN families f ON m.family_id = f.id
+      LEFT JOIN classes c ON m.class_id = c.id
       WHERE m.id = ?
     `).bind(id).first();
     
@@ -178,6 +185,14 @@ members.post('/', async (c) => {
       return c.json({ error: 'Missing required fields: name, member_number' }, 400);
     }
     
+    // 생년월일로 학년 자동 계산
+    let schoolGrade = null;
+    if (data.birth_date && !data.school_grade) {
+      schoolGrade = calculateSchoolGrade(data.birth_date);
+    } else if (data.school_grade) {
+      schoolGrade = data.school_grade;
+    }
+    
     // 교인 레코드 생성
     const result = await db.prepare(`
       INSERT INTO members (
@@ -185,9 +200,10 @@ members.post('/', async (c) => {
         baptism_date, baptism_place, baptism_type, confession_date,
         registration_date, member_status, previous_church, transfer_date,
         family_id, family_role, current_service, service_history,
-        photo_url, note, emergency_contact, emergency_contact_name
+        photo_url, note, emergency_contact, emergency_contact_name,
+        school_grade, grade_override, class_id
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.member_number,
       data.name,
@@ -213,7 +229,10 @@ members.post('/', async (c) => {
       data.photo_url || null,
       data.note || null,
       data.emergency_contact || null,
-      data.emergency_contact_name || null
+      data.emergency_contact_name || null,
+      schoolGrade,
+      data.school_grade ? 1 : 0,  // 수동 설정 여부
+      data.class_id || null
     ).run();
     
     if (!result.success) {
@@ -245,12 +264,21 @@ members.put('/:id', async (c) => {
     const updates: string[] = [];
     const params: any[] = [];
     
+    // 학년 자동 계산
+    if (data.birth_date && data.school_grade === undefined) {
+      data.school_grade = calculateSchoolGrade(data.birth_date);
+      data.grade_override = 0;
+    } else if (data.school_grade !== undefined) {
+      data.grade_override = 1;
+    }
+    
     const allowedFields = [
       'name', 'name_english', 'birth_date', 'gender', 'phone', 'email', 'address', 'zip_code',
       'baptism_date', 'baptism_place', 'baptism_type', 'confession_date',
       'registration_date', 'member_status', 'previous_church', 'transfer_date',
       'family_id', 'family_role', 'current_service', 'service_history',
-      'photo_url', 'note', 'emergency_contact', 'emergency_contact_name'
+      'photo_url', 'note', 'emergency_contact', 'emergency_contact_name',
+      'school_grade', 'grade_override', 'class_id'
     ];
     
     for (const field of allowedFields) {
@@ -288,6 +316,39 @@ members.delete('/:id', async (c) => {
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
+
+// 학년 자동 계산 함수
+function calculateSchoolGrade(birthDate: string): string {
+  const birthYear = new Date(birthDate).getFullYear();
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  
+  let age = currentYear - birthYear;
+  
+  // 3월 이전이면 나이에서 1을 뺌 (학년은 3월 기준)
+  if (currentMonth < 3) {
+    age -= 1;
+  }
+  
+  if (age <= 3) {
+    return '영아부';
+  } else if (age <= 6) {
+    return '유치부';
+  } else if (age <= 7) {
+    return '유년부';
+  } else if (age <= 13) {
+    const grade = age - 7;
+    return `초${grade}`;
+  } else if (age <= 16) {
+    const grade = age - 13;
+    return `중${grade}`;
+  } else if (age <= 19) {
+    const grade = age - 16;
+    return `고${grade}`;
+  } else {
+    return '청년부';
+  }
+}
 
 export default members;
 

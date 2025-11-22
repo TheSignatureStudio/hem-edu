@@ -114,7 +114,8 @@ function renderMenu() {
   
   const menuItems = [
     { id: 'dashboard', icon: 'fa-home', label: '대시보드' },
-    { id: 'members', icon: 'fa-users', label: '교인 관리' },
+    { id: 'members', icon: 'fa-users', label: '학생 관리' },
+    { id: 'classes', icon: 'fa-chalkboard', label: '반 관리' },
     { id: 'groups', icon: 'fa-object-group', label: '구역/소그룹' },
     { id: 'attendance', icon: 'fa-calendar-check', label: '출석 관리' },
     { id: 'counseling', icon: 'fa-comments', label: '상담 기록' },
@@ -165,6 +166,9 @@ async function loadPage(page) {
     case 'members':
       await loadMembers(content);
             break;
+        case 'classes':
+      await loadClasses(content);
+      break;
     case 'groups':
       await loadGroups(content);
             break;
@@ -283,6 +287,11 @@ async function loadMembers(content) {
   await MembersModule.loadMembersList();
 }
 
+// 반 관리 로드
+async function loadClasses(content) {
+  await ClassesModule.loadClassesList();
+}
+
 // 구역/소그룹 로드
 async function loadGroups(content) {
   await GroupsModule.loadGroupsList();
@@ -317,11 +326,11 @@ async function loadSettings(content) {
     <div class="mb-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-2">시스템 설정</h2>
       <p class="text-gray-600">교회 정보 및 시스템 설정을 관리합니다.</p>
-                </div>
+            </div>
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <p class="text-gray-600">시스템 설정 기능은 구현 중입니다.</p>
-            </div>
-        `;
+        </div>
+    `;
 }
 
 // ==================== 유틸리티 함수 ====================
@@ -339,8 +348,8 @@ function showModal(title, content) {
                 </div>
         <div class="px-6 py-4">
           ${content}
-                        </div>
-                        </div>
+                </div>
+                </div>
             </div>
         `;
         

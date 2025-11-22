@@ -8,6 +8,7 @@ import auth from './routes/auth';
 import users from './routes/users';
 import members from './routes/members';
 import groups from './routes/groups';
+import classes from './routes/classes';
 import attendance from './routes/attendance';
 import counseling from './routes/counseling';
 import settings from './routes/settings';
@@ -25,6 +26,7 @@ app.route('/api/auth', auth);
 app.route('/api/users', users);
 app.route('/api/members', members);
 app.route('/api/groups', groups);
+app.route('/api/classes', classes);
 app.route('/api/attendance', attendance);
 app.route('/api/counseling', counseling);
 app.route('/api/settings', settings);
@@ -51,8 +53,8 @@ app.get('/', (c) => {
                         <div class="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-purple-100 mb-4">
                             <i class="fas fa-church text-2xl text-purple-600"></i>
                         </div>
-                        <h1 class="text-2xl font-bold text-gray-800 mb-1">교회 교적 관리 시스템</h1>
-                        <p class="text-gray-500 text-sm">은혜교회</p>
+                        <h1 class="text-2xl font-bold text-gray-800 mb-1">주일학교 교적 관리 시스템</h1>
+                        <p class="text-gray-500 text-sm">은혜교회 주일학교</p>
                     </div>
                     
                     <div id="login-error" class="hidden bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl mb-4">
@@ -94,7 +96,7 @@ app.get('/', (c) => {
                                 <div class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-purple-100">
                                     <i class="fas fa-church text-base text-purple-600"></i>
                                 </div>
-                                <h1 class="text-lg font-bold text-gray-800">교회 교적 관리</h1>
+                                <h1 class="text-lg font-bold text-gray-800">주일학교 교적</h1>
                             </div>
                             <div class="flex items-center space-x-4">
                                 <span id="user-info" class="text-sm text-gray-600"></span>
@@ -129,11 +131,12 @@ app.get('/', (c) => {
         </div>
         
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=202511221500" defer></script>
-        <script src="/static/members.js?v=202511221500" defer></script>
-        <script src="/static/groups.js?v=202511221500" defer></script>
-        <script src="/static/attendance.js?v=202511221500" defer></script>
-        <script src="/static/counseling.js?v=202511221500" defer></script>
+        <script src="/static/app.js?v=202511221600" defer></script>
+        <script src="/static/members.js?v=202511221600" defer></script>
+        <script src="/static/classes.js?v=202511221600" defer></script>
+        <script src="/static/groups.js?v=202511221600" defer></script>
+        <script src="/static/attendance.js?v=202511221600" defer></script>
+        <script src="/static/counseling.js?v=202511221600" defer></script>
     </body>
     </html>
   `);

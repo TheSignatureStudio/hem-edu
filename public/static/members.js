@@ -70,12 +70,12 @@ const MembersModule = {
           <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">교인번호</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">학생번호</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">성별</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">학년</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">반</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">생년월일</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">연락처</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">세례</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
               </tr>
@@ -105,6 +105,8 @@ const MembersModule = {
       const statusBadge = this.getStatusBadge(member.member_status);
       const birthDate = member.birth_date ? new Date(member.birth_date).toLocaleDateString('ko-KR') : '-';
       
+      const age = member.birth_date ? new Date().getFullYear() - new Date(member.birth_date).getFullYear() : '';
+      
       return `
         <tr class="hover:bg-gray-50 transition-colors">
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${member.member_number}</td>
@@ -112,10 +114,13 @@ const MembersModule = {
             <div class="text-sm font-medium text-gray-900">${member.name}</div>
             <div class="text-xs text-gray-500">${member.family_name || ''}</div>
           </td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${member.gender || '-'}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${birthDate}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+            ${member.school_grade || '-'}
+            ${member.grade_override ? '<i class="fas fa-lock text-xs text-yellow-600" title="수동 설정"></i>' : ''}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${member.class_name || '-'}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${birthDate} ${age ? `(${age}세)` : ''}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${member.phone || '-'}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${member.baptism_type || '-'}</td>
           <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm">
             <button onclick="MembersModule.viewMember(${member.id})" class="text-blue-600 hover:text-blue-800 mr-3">
@@ -270,10 +275,17 @@ const MembersModule = {
             <label class="block text-sm font-medium text-gray-700 mb-2">등록일</label>
             <input type="date" name="registration_date" class="input-modern w-full">
           </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">학년 (자동 계산)</label>
+            <input type="text" name="school_grade" class="input-modern w-full" placeholder="생년월일로 자동 계산">
+            <p class="text-xs text-gray-500 mt-1">※ 입력하지 않으면 생년월일 기준으로 자동 계산됩니다</p>
+          </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">현재 봉사</label>
             <input type="text" name="current_service" class="input-modern w-full">
           </div>
+        </div>
         </div>
         
         <div>
@@ -388,6 +400,22 @@ const MembersModule = {
                 <p class="text-sm text-gray-500">생년월일</p>
                 <p class="text-base font-medium text-gray-900">${member.birth_date ? new Date(member.birth_date).toLocaleDateString('ko-KR') : '-'}</p>
               </div>
+              ${member.school_grade ? `
+              <div>
+                <p class="text-sm text-gray-500">학년</p>
+                <p class="text-base font-medium text-gray-900">
+                  ${member.school_grade}
+                  ${member.grade_override ? '<span class="text-xs text-yellow-600">(수동 설정)</span>' : ''}
+                </p>
+              </div>
+              ` : ''}
+              ${member.class_name ? `
+              <div>
+                <p class="text-sm text-gray-500">소속 반</p>
+                <p class="text-base font-medium text-gray-900">${member.class_name}</p>
+                ${member.teacher_name ? `<p class="text-sm text-gray-600">${member.teacher_name} 선생님</p>` : ''}
+              </div>
+              ` : ''}
               <div>
                 <p class="text-sm text-gray-500">연락처</p>
                 <p class="text-base font-medium text-gray-900">${member.phone || '-'}</p>
@@ -574,9 +602,18 @@ const MembersModule = {
             </div>
           </div>
           
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">현재 봉사</label>
-            <input type="text" name="current_service" value="${member.current_service || ''}" class="input-modern w-full">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">학년</label>
+              <input type="text" name="school_grade" value="${member.school_grade || ''}" class="input-modern w-full">
+              <p class="text-xs text-gray-500 mt-1">
+                ${member.grade_override ? '※ 수동으로 설정된 학년입니다' : '※ 비우면 생년월일로 자동 계산'}
+              </p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">현재 봉사</label>
+              <input type="text" name="current_service" value="${member.current_service || ''}" class="input-modern w-full">
+            </div>
           </div>
           
           <div>
