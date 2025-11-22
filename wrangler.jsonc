@@ -9,8 +9,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "webapp-production",
-      "database_id": "9ee2b614-b840-4f8b-89d7-5d2eb9eed0f2"
+      "database_name": "hem-edu-db",
+      "database_id": "5fd5879a-86d2-4fc2-86d8-2c30f8604591"
     }
   ]
 }
