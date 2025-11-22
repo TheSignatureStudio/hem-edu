@@ -1,7 +1,11 @@
 import { Hono } from 'hono';
 import type { CloudflareBindings } from '../types';
+import { authMiddleware } from '../middleware/auth';
 
 const counseling = new Hono<{ Bindings: CloudflareBindings }>();
+
+// 모든 미들웨어 적용
+counseling.use('*', authMiddleware);
 
 // 상담기록 목록 조회
 counseling.get('/', async (c) => {

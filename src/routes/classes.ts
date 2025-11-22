@@ -28,9 +28,15 @@ classes.get('/', requireDepartmentAccess, async (c) => {
     const params: any[] = [];
     
     // 최고관리자가 아니면 자신의 부서만 조회
-    if (!isSuperAdmin && userDepartmentId) {
-      query += ' AND c.department_id = ?';
-      params.push(userDepartmentId);
+    if (!isSuperAdmin) {
+      if (userDepartmentId) {
+        query += ' AND c.department_id = ?';
+        params.push(userDepartmentId);
+      } else if (department_id) {
+        query += ' AND c.department_id = ?';
+        params.push(Number(department_id));
+      }
+      // userDepartmentId가 없으면 모든 반 조회 (임시)
     } else if (department_id) {
       query += ' AND c.department_id = ?';
       params.push(Number(department_id));

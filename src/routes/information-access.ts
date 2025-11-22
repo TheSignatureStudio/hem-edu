@@ -22,18 +22,17 @@ informationAccess.post('/log', async (c) => {
     const ipAddress = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
     const userAgent = c.req.header('User-Agent') || 'unknown';
     
+    // accessed_by_user_id로 컬럼명 수정
     const result = await db.prepare(`
       INSERT INTO information_access_logs (
-        accessed_by, accessed_member_id, access_type, accessed_fields, ip_address, user_agent
+        accessed_by_user_id, accessed_member_id, accessed_field, accessor_ip
       )
-      VALUES (?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?)
     `).bind(
       userId,
       member_id,
-      access_type,
-      accessed_fields ? JSON.stringify(accessed_fields) : null,
-      ipAddress,
-      userAgent
+      accessed_fields ? (Array.isArray(accessed_fields) ? accessed_fields.join(',') : accessed_fields) : 'view',
+      ipAddress
     ).run();
     
     return c.json({ 
@@ -60,7 +59,7 @@ informationAccess.get('/logs', requireSuperAdmin, async (c) => {
         m.name as member_name,
         m.member_number
       FROM information_access_logs l
-      LEFT JOIN users u ON l.accessed_by = u.id
+      LEFT JOIN users u ON l.accessed_by_user_id = u.id
       LEFT JOIN members m ON l.accessed_member_id = m.id
       WHERE 1=1
     `;
@@ -72,21 +71,21 @@ informationAccess.get('/logs', requireSuperAdmin, async (c) => {
     }
     
     if (accessed_by) {
-      query += ' AND l.accessed_by = ?';
+      query += ' AND l.accessed_by_user_id = ?';
       params.push(Number(accessed_by));
     }
     
     if (date_from) {
-      query += ' AND DATE(l.created_at) >= ?';
+      query += ' AND DATE(l.access_timestamp) >= ?';
       params.push(date_from);
     }
     
     if (date_to) {
-      query += ' AND DATE(l.created_at) <= ?';
+      query += ' AND DATE(l.access_timestamp) <= ?';
       params.push(date_to);
     }
     
-    query += ' ORDER BY l.created_at DESC LIMIT ? OFFSET ?';
+    query += ' ORDER BY l.access_timestamp DESC LIMIT ? OFFSET ?';
     params.push(Number(limit), Number(offset));
     
     const { results } = await db.prepare(query).bind(...params).all();
@@ -106,9 +105,9 @@ informationAccess.get('/stats', requireSuperAdmin, async (c) => {
     
     let query = `
       SELECT 
-        DATE(l.created_at) as date,
+        DATE(l.access_timestamp) as date,
         COUNT(*) as total_access,
-        COUNT(DISTINCT l.accessed_by) as unique_users,
+        COUNT(DISTINCT l.accessed_by_user_id) as unique_users,
         COUNT(DISTINCT l.accessed_member_id) as unique_members
       FROM information_access_logs l
       WHERE 1=1
@@ -116,16 +115,16 @@ informationAccess.get('/stats', requireSuperAdmin, async (c) => {
     const params: any[] = [];
     
     if (date_from) {
-      query += ' AND DATE(l.created_at) >= ?';
+      query += ' AND DATE(l.access_timestamp) >= ?';
       params.push(date_from);
     }
     
     if (date_to) {
-      query += ' AND DATE(l.created_at) <= ?';
+      query += ' AND DATE(l.access_timestamp) <= ?';
       params.push(date_to);
     }
     
-    query += ' GROUP BY DATE(l.created_at) ORDER BY date DESC';
+    query += ' GROUP BY DATE(l.access_timestamp) ORDER BY date DESC';
     
     const { results } = await db.prepare(query).bind(...params).all();
     
