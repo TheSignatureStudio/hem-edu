@@ -1,13 +1,49 @@
--- 부서 구조 재정의 및 권한 시스템 개선
+-- 모든 마이그레이션을 순서대로 적용하는 통합 스크립트
+-- Cloudflare D1 Dashboard에서 각 SQL 문을 개별적으로 실행하세요
+-- (D1은 다중 문 쿼리를 지원하지 않으므로 각 문을 하나씩 실행해야 합니다)
 
+-- ============================================
+-- Migration 0005: Remove attendance service_type CHECK constraint
+-- ============================================
+-- 기존 테이블 백업
+CREATE TABLE IF NOT EXISTS attendance_backup AS SELECT * FROM attendance;
+
+-- 기존 테이블 삭제
+DROP TABLE IF EXISTS attendance;
+
+-- CHECK 제약 조건 없이 테이블 재생성
+CREATE TABLE attendance (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  member_id INTEGER NOT NULL,
+  attendance_date DATE NOT NULL,
+  service_type TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('출석', '결석', '기타')),
+  note TEXT,
+  recorded_by INTEGER,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+  FOREIGN KEY (recorded_by) REFERENCES users(id),
+  UNIQUE(member_id, attendance_date, service_type)
+);
+
+-- 데이터 복원 (컬럼 순서 명시)
+INSERT INTO attendance (id, member_id, attendance_date, service_type, status, note, recorded_by, created_at)
+SELECT id, member_id, attendance_date, service_type, status, note, recorded_by, created_at
+FROM attendance_backup;
+
+-- 백업 테이블 삭제
+DROP TABLE IF EXISTS attendance_backup;
+
+-- 인덱스 재생성
+CREATE INDEX IF NOT EXISTS idx_attendance_member ON attendance(member_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(attendance_date);
+
+-- ============================================
+-- Migration 0006: Restructure departments and permissions
+-- ============================================
 -- 1. users 테이블에 super_admin 역할 추가 및 부서 연결
 ALTER TABLE users ADD COLUMN department_id INTEGER;
 ALTER TABLE users ADD COLUMN is_super_admin INTEGER DEFAULT 0;
-
--- users 테이블의 role CHECK 제약 조건 수정 (super_admin 추가)
--- SQLite는 CHECK 제약 조건을 직접 수정할 수 없으므로 테이블 재생성 필요
--- 하지만 기존 데이터가 있으므로 일단 컬럼만 추가하고, 
--- role은 애플리케이션 레벨에서 관리
 
 -- 2. classes 테이블에 부서 연결
 ALTER TABLE classes ADD COLUMN department_id INTEGER;
@@ -59,7 +95,6 @@ CREATE INDEX IF NOT EXISTS idx_access_logs_member ON information_access_logs(acc
 CREATE INDEX IF NOT EXISTS idx_access_logs_date ON information_access_logs(access_timestamp);
 
 -- 7. 부서 데이터 재정의 (유초등부, 젊은이부)
--- 새로운 부서 구조 추가 (기존 부서는 유지)
 INSERT OR IGNORE INTO departments (name, display_order) VALUES 
   ('유초등부', 1),
   ('젊은이부', 2);
@@ -76,4 +111,10 @@ SELECT '젊은이 예배', 2, id FROM departments WHERE name = '젊은이부' LI
 -- 통합예배 (부서 없음 - 모든 부서가 함께)
 INSERT OR IGNORE INTO service_types (name, display_order, department_id) 
 VALUES ('통합예배', 3, NULL);
+
+-- ============================================
+-- Migration 0007: Add parent contact fields
+-- ============================================
+ALTER TABLE members ADD COLUMN parent_phone TEXT;
+ALTER TABLE members ADD COLUMN parent_name TEXT;
 
