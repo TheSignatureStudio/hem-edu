@@ -16,8 +16,9 @@ auth.post('/login', async (c) => {
     const db = c.env.DB;
     
     // 사용자 조회 (부서 정보 포함)
+    // department_id와 is_super_admin는 NULL일 수 있으므로 COALESCE 사용
     const user = await db.prepare(
-      'SELECT id, username, password_hash, email, name, role, phone, department_id, is_super_admin FROM users WHERE username = ? AND is_active = 1'
+      'SELECT id, username, password_hash, email, name, role, phone, COALESCE(department_id, NULL) as department_id, COALESCE(is_super_admin, 0) as is_super_admin FROM users WHERE username = ? AND is_active = 1'
     ).bind(username).first();
     
     if (!user) {
@@ -34,11 +35,14 @@ auth.post('/login', async (c) => {
     }
     
     // JWT 토큰 생성 (부서 정보 및 최고관리자 여부 포함)
+    const departmentId = user.department_id ? Number(user.department_id) : null;
+    const isSuperAdmin = user.is_super_admin === 1 || user.is_super_admin === true || user.is_super_admin === '1';
+    
     const token = await createToken(
       user.id as number, 
       user.role as string,
-      user.department_id as number | null,
-      user.is_super_admin === 1 || user.is_super_admin === true
+      departmentId,
+      isSuperAdmin
     );
     
     // 사용자 역할에 따른 추가 정보 조회
@@ -65,14 +69,23 @@ auth.post('/login', async (c) => {
         name: user.name,
         role: user.role,
         phone: user.phone,
-        department_id: user.department_id,
-        is_super_admin: user.is_super_admin === 1 || user.is_super_admin === true
+        department_id: departmentId,
+        is_super_admin: isSuperAdmin
       },
       ...additionalInfo
     });
   } catch (error: any) {
     console.error('Login error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    console.error('Error details:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      cause: error?.cause
+    });
+    return c.json({ 
+      error: 'Internal server error',
+      details: error?.message || 'Unknown error'
+    }, 500);
   }
 });
 
