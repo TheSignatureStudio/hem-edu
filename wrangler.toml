@@ -5,5 +5,5 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "hem-edu-db"
-database_id = "f50e464f-5d45-48e1-af66-16ce66d18f32"
+database_id = "5fd5879a-86d2-4fc2-86d8-2c30f8604591"
 
