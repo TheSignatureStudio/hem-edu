@@ -215,15 +215,29 @@ async function loadDashboard(content) {
   try {
     const token = localStorage.getItem('token');
     
-    // 통계 데이터 가져오기
-    const [membersRes, groupsRes] = await Promise.all([
-      axios.get(`${API_URL}/members`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`${API_URL}/groups`, { headers: { Authorization: `Bearer ${token}` } })
-    ]);
+    // 통계 데이터 가져오기 (에러 발생 시 기본값 사용)
+    let totalMembers = 0;
+    let activeMembers = 0;
+    let totalGroups = 0;
     
-    const totalMembers = membersRes.data.members?.length || 0;
-    const activeMembers = membersRes.data.members?.filter(m => m.member_status === 'active').length || 0;
-    const totalGroups = groupsRes.data.groups?.length || 0;
+    try {
+      const membersRes = await axios.get(`${API_URL}/members?limit=1000`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      totalMembers = membersRes.data.members?.length || 0;
+      activeMembers = membersRes.data.members?.filter(m => m.member_status === 'active').length || 0;
+    } catch (err) {
+      console.warn('Members API error:', err);
+    }
+    
+    try {
+      const groupsRes = await axios.get(`${API_URL}/groups`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      totalGroups = groupsRes.data.groups?.length || 0;
+    } catch (err) {
+      console.warn('Groups API error:', err);
+    }
     
     content.innerHTML = `
       <div class="mb-8">
@@ -299,7 +313,21 @@ async function loadDashboard(content) {
     `;
             } catch (error) {
     console.error('Dashboard load error:', error);
-    content.innerHTML = '<p class="text-red-500">대시보드를 불러오는데 실패했습니다.</p>';
+    console.error('Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      statusText: error.response?.statusText
+    });
+    
+    let errorMessage = '대시보드를 불러오는데 실패했습니다.';
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    content.innerHTML = `<p class="text-red-500">${errorMessage}</p>`;
   }
 }
 

@@ -31,9 +31,16 @@ members.get('/', requireDepartmentAccess, async (c) => {
     const params: any[] = [];
     
     // 최고관리자가 아니면 자신의 부서만 조회
-    if (!isSuperAdmin && userDepartmentId) {
-      query += ' AND m.department_id = ?';
-      params.push(userDepartmentId);
+    // department_id가 명시되지 않았으면 사용자의 부서로 필터링
+    if (!isSuperAdmin) {
+      if (userDepartmentId) {
+        query += ' AND m.department_id = ?';
+        params.push(userDepartmentId);
+      } else if (department_id) {
+        query += ' AND m.department_id = ?';
+        params.push(Number(department_id));
+      }
+      // userDepartmentId가 없으면 빈 결과 반환 (부서가 할당되지 않은 사용자)
     } else if (department_id) {
       query += ' AND m.department_id = ?';
       params.push(Number(department_id));
