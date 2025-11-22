@@ -12,6 +12,8 @@ import classes from './routes/classes';
 import attendance from './routes/attendance';
 import counseling from './routes/counseling';
 import settings from './routes/settings';
+import trainings from './routes/trainings';
+import informationAccess from './routes/information-access';
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -30,6 +32,8 @@ app.route('/api/classes', classes);
 app.route('/api/attendance', attendance);
 app.route('/api/counseling', counseling);
 app.route('/api/settings', settings);
+app.route('/api/trainings', trainings);
+app.route('/api/information-access', informationAccess);
 
 // 기본 홈페이지
 app.get('/', (c) => {
@@ -137,6 +141,8 @@ app.get('/', (c) => {
         <script src="/static/groups.js?v=202511221800" defer></script>
         <script src="/static/attendance.js?v=202511221800" defer></script>
         <script src="/static/counseling.js?v=202511221800" defer></script>
+        <script src="/static/trainings.js?v=202511221800" defer></script>
+        <script src="/static/information-access-logs.js?v=202511221800" defer></script>
         <script src="/static/settings.js?v=202511221800" defer></script>
         <script src="/static/users.js?v=202511221800" defer></script>
     </body>

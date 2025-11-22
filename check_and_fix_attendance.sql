@@ -1,0 +1,35 @@
+-- 1단계: 현재 테이블 구조 확인
+SELECT sql FROM sqlite_master WHERE type='table' AND name='attendance';
+
+-- 2단계: 테이블 재생성 (위 쿼리 결과를 확인한 후 아래 SQL 실행)
+-- BEGIN TRANSACTION;
+-- 
+-- CREATE TABLE attendance_backup AS SELECT * FROM attendance;
+-- 
+-- DROP TABLE attendance;
+-- 
+-- CREATE TABLE attendance (
+--   id INTEGER PRIMARY KEY AUTOINCREMENT,
+--   member_id INTEGER NOT NULL,
+--   attendance_date DATE NOT NULL,
+--   service_type TEXT NOT NULL,
+--   status TEXT NOT NULL CHECK(status IN ('출석', '결석', '기타')),
+--   note TEXT,
+--   recorded_by INTEGER,
+--   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+--   FOREIGN KEY (recorded_by) REFERENCES users(id),
+--   UNIQUE(member_id, attendance_date, service_type)
+-- );
+-- 
+-- INSERT INTO attendance (id, member_id, attendance_date, service_type, status, note, recorded_by, created_at)
+-- SELECT id, member_id, attendance_date, service_type, status, note, recorded_by, created_at
+-- FROM attendance_backup;
+-- 
+-- DROP TABLE attendance_backup;
+-- 
+-- CREATE INDEX IF NOT EXISTS idx_attendance_member ON attendance(member_id);
+-- CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(attendance_date);
+-- 
+-- COMMIT;
+

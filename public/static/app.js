@@ -116,7 +116,7 @@ function renderMenu() {
     { id: 'dashboard', icon: 'fa-home', label: '대시보드' },
     { id: 'members', icon: 'fa-users', label: '학생 관리' },
     { id: 'classes', icon: 'fa-chalkboard', label: '반 관리' },
-    { id: 'groups', icon: 'fa-object-group', label: '구역/소그룹' },
+    { id: 'trainings', icon: 'fa-graduation-cap', label: '훈련 관리' },
     { id: 'attendance', icon: 'fa-calendar-check', label: '출석 관리' },
     { id: 'counseling', icon: 'fa-comments', label: '상담 기록' },
   ];
@@ -126,6 +126,13 @@ function renderMenu() {
     menuItems.push(
       { id: 'users', icon: 'fa-user-shield', label: '계정 관리' },
       { id: 'settings', icon: 'fa-cog', label: '시스템 설정' }
+    );
+  }
+  
+  // 최고관리자 전용 메뉴
+  if (currentUser.is_super_admin) {
+    menuItems.push(
+      { id: 'access-logs', icon: 'fa-shield-alt', label: '정보 열람 기록' }
     );
   }
   
@@ -169,6 +176,13 @@ async function loadPage(page) {
         case 'classes':
       await loadClasses(content);
       break;
+    case 'trainings':
+      if (typeof TrainingModule !== 'undefined') {
+        await TrainingModule.loadTrainingsPage();
+      } else {
+        content.innerHTML = '<p class="text-gray-500">훈련 관리 모듈을 불러올 수 없습니다.</p>';
+      }
+      break;
     case 'groups':
       await loadGroups(content);
             break;
@@ -184,6 +198,13 @@ async function loadPage(page) {
         case 'settings':
       await loadSettings(content);
             break;
+    case 'access-logs':
+      if (typeof InformationAccessLogsModule !== 'undefined') {
+        await InformationAccessLogsModule.loadAccessLogsPage();
+      } else {
+        content.innerHTML = '<p class="text-gray-500">정보 열람 기록 모듈을 불러올 수 없습니다.</p>';
+      }
+      break;
         default:
       content.innerHTML = '<p class="text-gray-500">페이지를 찾을 수 없습니다.</p>';
   }

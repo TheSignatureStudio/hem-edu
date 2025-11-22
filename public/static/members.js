@@ -3,6 +3,7 @@
 const MembersModule = {
   currentMembers: [],
   currentMember: null,
+  revealedMembers: new Set(), // 가려진 정보를 본 멤버 ID 집합
   
   // 교인 목록 로드
   async loadMembersList() {
@@ -120,7 +121,21 @@ const MembersModule = {
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${member.class_name || '-'}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${birthDate} ${age ? `(${age}세)` : ''}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${member.phone || '-'}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+            ${this.revealedMembers.has(member.id) 
+              ? (member.phone || '-')
+              : (member.phone ? '***-****-****' : '-')
+            }
+            ${member.phone && !this.revealedMembers.has(member.id) ? `
+              <button 
+                onclick="MembersModule.revealMemberInfo(${member.id})"
+                class="ml-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                title="가려진 정보보기"
+              >
+                <i class="fas fa-eye"></i> 보기
+              </button>
+            ` : ''}
+          </td>
           <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm">
             <button onclick="MembersModule.viewMember(${member.id})" class="text-blue-600 hover:text-blue-800 mr-3">
@@ -418,15 +433,41 @@ const MembersModule = {
               ` : ''}
               <div>
                 <p class="text-sm text-gray-500">연락처</p>
-                <p class="text-base font-medium text-gray-900">${member.phone || '-'}</p>
+                <div class="flex items-center">
+                  <p class="text-base font-medium text-gray-900">
+                    ${this.revealedMembers.has(member.id) 
+                      ? (member.phone || '-')
+                      : (member.phone ? '***-****-****' : '-')
+                    }
+                  </p>
+                  ${member.phone && !this.revealedMembers.has(member.id) ? `
+                    <button 
+                      onclick="MembersModule.revealMemberInfo(${member.id}, true)"
+                      class="ml-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                      title="가려진 정보보기"
+                    >
+                      <i class="fas fa-eye"></i> 보기
+                    </button>
+                  ` : ''}
+                </div>
               </div>
               <div>
                 <p class="text-sm text-gray-500">이메일</p>
-                <p class="text-base font-medium text-gray-900">${member.email || '-'}</p>
+                <p class="text-base font-medium text-gray-900">
+                  ${this.revealedMembers.has(member.id) 
+                    ? (member.email || '-')
+                    : (member.email ? '***@***.***' : '-')
+                  }
+                </p>
               </div>
               <div class="col-span-2">
                 <p class="text-sm text-gray-500">주소</p>
-                <p class="text-base font-medium text-gray-900">${member.address || '-'}</p>
+                <p class="text-base font-medium text-gray-900">
+                  ${this.revealedMembers.has(member.id) 
+                    ? (member.address || '-')
+                    : (member.address ? '***' : '-')
+                  }
+                </p>
               </div>
             </div>
           </div>
@@ -639,6 +680,38 @@ const MembersModule = {
     } catch (error) {
       console.error('Edit member error:', error);
       showToast('교인 정보를 불러오는데 실패했습니다.', 'error');
+    }
+  },
+  
+  // 가려진 정보 보기 (정보 열람 기록)
+  async revealMemberInfo(memberId, refreshView = false) {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // 정보 열람 기록 저장
+      await axios.post(`${API_URL}/information-access/log`, {
+        member_id: memberId,
+        access_type: 'view',
+        accessed_fields: ['phone', 'email', 'address']
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // 가려진 정보 표시
+      this.revealedMembers.add(memberId);
+      
+      if (refreshView) {
+        // 상세 보기 모달이 열려있으면 새로고침
+        await this.viewMember(memberId);
+      } else {
+        // 목록 새로고침
+        this.renderMembersList();
+      }
+      
+      showToast('정보 열람이 기록되었습니다.', 'info');
+    } catch (error) {
+      console.error('Reveal member info error:', error);
+      showToast('정보 열람 기록에 실패했습니다.', 'error');
     }
   },
   
