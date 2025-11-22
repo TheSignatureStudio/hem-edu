@@ -4,20 +4,23 @@ const ClassesModule = {
   currentClasses: [],
   allMembers: [],
   allTeachers: [],
+  departments: [],
   
   // 반 목록 로드
   async loadClassesList() {
     try {
       const token = localStorage.getItem('token');
-      const [classesRes, membersRes, teachersRes] = await Promise.all([
+      const [classesRes, membersRes, teachersRes, departmentsRes] = await Promise.all([
         axios.get(`${API_URL}/classes`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API_URL}/members`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/settings/teachers`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/settings/teachers`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/settings/departments`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       
       this.currentClasses = classesRes.data.classes || [];
       this.allMembers = membersRes.data.members || [];
       this.allTeachers = teachersRes.data.teachers || [];
+      this.departments = departmentsRes.data.departments || [];
       this.renderClassesList();
     } catch (error) {
       console.error('Load classes error:', error);
@@ -153,13 +156,9 @@ const ClassesModule = {
             <label class="block text-sm font-medium text-gray-700 mb-2">부서 *</label>
             <select name="grade_level" required class="input-modern w-full">
               <option value="">선택하세요</option>
-              <option value="영아부">영아부</option>
-              <option value="유치부">유치부</option>
-              <option value="유년부">유년부</option>
-              <option value="초등부">초등부</option>
-              <option value="중등부">중등부</option>
-              <option value="고등부">고등부</option>
-              <option value="청년부">청년부</option>
+              ${this.departments.map(d => `
+                <option value="${d.name}">${d.name}</option>
+              `).join('')}
             </select>
           </div>
         </div>
@@ -430,9 +429,14 @@ const ClassesModule = {
     
     showModal('학생 배정', `
       <form id="assign-student-form" class="space-y-4">
-        <p class="text-sm text-gray-600">
-          <strong>${classInfo.name}</strong>에 배정할 학생을 선택하세요.
-        </p>
+        <div class="flex items-center justify-between">
+          <p class="text-sm text-gray-600">
+            <strong>${classInfo.name}</strong>에 배정할 학생을 선택하세요.
+          </p>
+          <button type="button" onclick="ClassesModule.toggleSelectAll()" class="text-sm text-purple-600 hover:text-purple-800">
+            <i class="fas fa-check-double mr-1"></i>전체 선택
+          </button>
+        </div>
         
         <!-- 검색 필터 -->
         <div>
@@ -446,9 +450,12 @@ const ClassesModule = {
           >
         </div>
         
-        <!-- 학생 리스트 (라디오 버튼 방식) -->
+        <!-- 학생 리스트 (체크박스 방식) -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">학생 선택 *</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            학생 선택 * 
+            <span id="selected-count" class="text-purple-600 font-bold ml-2">0명 선택됨</span>
+          </label>
           ${availableStudents.length > 0 ? `
             <div id="student-list" class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
               ${availableStudents.map((m, index) => {
@@ -460,12 +467,10 @@ const ClassesModule = {
                     data-grade="${(m.school_grade || '').toLowerCase()}"
                   >
                     <input 
-                      type="radio" 
-                      name="member_id" 
-                      value="${m.id}" 
-                      required
-                      class="mr-3"
-                      id="student-${m.id}"
+                      type="checkbox" 
+                      class="student-checkbox mr-3 rounded border-gray-300" 
+                      value="${m.id}"
+                      onchange="ClassesModule.updateSelectedCount()"
                     >
                     <div class="flex-1">
                       <div class="flex items-center space-x-2">
@@ -501,7 +506,7 @@ const ClassesModule = {
             취소
           </button>
           <button type="submit" class="btn-pastel-primary px-6 py-2 rounded-lg" ${availableStudents.length === 0 ? 'disabled' : ''}>
-            배정
+            <i class="fas fa-user-plus mr-2"></i>선택한 학생 배정
           </button>
         </div>
       </form>
@@ -537,17 +542,55 @@ const ClassesModule = {
     }
   },
   
+  // 전체 선택/해제 토글
+  toggleSelectAll() {
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    const visibleCheckboxes = Array.from(checkboxes).filter(cb => {
+      const item = cb.closest('.student-item');
+      return item && item.style.display !== 'none';
+    });
+    
+    const allChecked = visibleCheckboxes.every(cb => cb.checked);
+    
+    visibleCheckboxes.forEach(cb => {
+      cb.checked = !allChecked;
+    });
+    
+    this.updateSelectedCount();
+  },
+  
+  // 선택된 학생 수 업데이트
+  updateSelectedCount() {
+    const selectedCheckboxes = document.querySelectorAll('.student-checkbox:checked');
+    const countElement = document.getElementById('selected-count');
+    if (countElement) {
+      countElement.textContent = `${selectedCheckboxes.length}명 선택됨`;
+    }
+  },
+  
   // 학생 배정 처리
   async handleAssignStudent(classId, formData) {
     try {
       const token = localStorage.getItem('token');
-      const data = Object.fromEntries(formData);
       
-      await axios.post(`${API_URL}/classes/${classId}/assign`, data, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // 체크된 학생들의 ID 수집
+      const selectedCheckboxes = document.querySelectorAll('.student-checkbox:checked');
+      const memberIds = Array.from(selectedCheckboxes).map(cb => cb.value);
       
-      showToast('학생이 배정되었습니다.', 'success');
+      if (memberIds.length === 0) {
+        showToast('배정할 학생을 선택해주세요.', 'warning');
+        return;
+      }
+      
+      // 각 학생을 순차적으로 배정
+      for (const memberId of memberIds) {
+        await axios.post(`${API_URL}/classes/${classId}/assign`, 
+          { member_id: memberId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+      
+      showToast(`${memberIds.length}명의 학생이 배정되었습니다.`, 'success');
       closeModal();
       this.viewClass(classId);
       
@@ -608,13 +651,9 @@ const ClassesModule = {
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">부서 *</label>
               <select name="grade_level" required class="input-modern w-full">
-                <option value="영아부" ${classInfo.grade_level === '영아부' ? 'selected' : ''}>영아부</option>
-                <option value="유치부" ${classInfo.grade_level === '유치부' ? 'selected' : ''}>유치부</option>
-                <option value="유년부" ${classInfo.grade_level === '유년부' ? 'selected' : ''}>유년부</option>
-                <option value="초등부" ${classInfo.grade_level === '초등부' ? 'selected' : ''}>초등부</option>
-                <option value="중등부" ${classInfo.grade_level === '중등부' ? 'selected' : ''}>중등부</option>
-                <option value="고등부" ${classInfo.grade_level === '고등부' ? 'selected' : ''}>고등부</option>
-                <option value="청년부" ${classInfo.grade_level === '청년부' ? 'selected' : ''}>청년부</option>
+                ${this.departments.map(d => `
+                  <option value="${d.name}" ${classInfo.grade_level === d.name ? 'selected' : ''}>${d.name}</option>
+                `).join('')}
               </select>
             </div>
           </div>

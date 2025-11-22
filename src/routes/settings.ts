@@ -252,4 +252,110 @@ settings.delete('/teachers/:id', async (c) => {
   }
 });
 
+// 부서 목록 조회
+settings.get('/departments', async (c) => {
+  try {
+    const db = c.env.DB;
+    
+    const { results } = await db.prepare(`
+      SELECT * FROM departments WHERE is_active = 1 ORDER BY display_order
+    `).all();
+    
+    return c.json({ departments: results });
+  } catch (error) {
+    console.error('Get departments error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// 부서 추가
+settings.post('/departments', async (c) => {
+  try {
+    const db = c.env.DB;
+    const { name, display_order } = await c.req.json();
+    
+    if (!name) {
+      return c.json({ error: 'Name is required' }, 400);
+    }
+    
+    const result = await db.prepare(`
+      INSERT INTO departments (name, display_order)
+      VALUES (?, ?)
+    `).bind(name, display_order || 999).run();
+    
+    return c.json({ 
+      message: 'Department added successfully',
+      id: result.meta.last_row_id
+    });
+  } catch (error: any) {
+    console.error('Add department error:', error);
+    if (error.message?.includes('UNIQUE constraint')) {
+      return c.json({ error: '이미 존재하는 부서입니다.' }, 409);
+    }
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// 부서 수정
+settings.put('/departments/:id', async (c) => {
+  try {
+    const db = c.env.DB;
+    const id = c.req.param('id');
+    const { name, display_order, is_active } = await c.req.json();
+    
+    const updates: string[] = [];
+    const params: any[] = [];
+    
+    if (name !== undefined) {
+      updates.push('name = ?');
+      params.push(name);
+    }
+    if (display_order !== undefined) {
+      updates.push('display_order = ?');
+      params.push(display_order);
+    }
+    if (is_active !== undefined) {
+      updates.push('is_active = ?');
+      params.push(is_active);
+    }
+    
+    if (updates.length > 0) {
+      params.push(id);
+      await db.prepare(`
+        UPDATE departments SET ${updates.join(', ')} WHERE id = ?
+      `).bind(...params).run();
+    }
+    
+    return c.json({ message: 'Department updated successfully' });
+  } catch (error) {
+    console.error('Update department error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// 부서 삭제
+settings.delete('/departments/:id', async (c) => {
+  try {
+    const db = c.env.DB;
+    const id = c.req.param('id');
+    
+    // 해당 부서를 사용하는 반이 있는지 확인
+    const { results } = await db.prepare(`
+      SELECT COUNT(*) as count FROM classes 
+      WHERE grade_level = (SELECT name FROM departments WHERE id = ?)
+    `).bind(id).all();
+    
+    if (results && results[0] && (results[0] as any).count > 0) {
+      return c.json({ error: '이 부서를 사용하는 반이 있어 삭제할 수 없습니다.' }, 400);
+    }
+    
+    await db.prepare('DELETE FROM departments WHERE id = ?').bind(id).run();
+    
+    return c.json({ message: 'Department deleted successfully' });
+  } catch (error) {
+    console.error('Delete department error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
 export default settings;

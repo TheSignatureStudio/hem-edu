@@ -309,15 +309,7 @@ async function loadCounseling(content) {
 
 // 계정 관리 로드
 async function loadUsers(content) {
-  content.innerHTML = `
-    <div class="mb-8">
-      <h2 class="text-2xl font-bold text-gray-800 mb-2">계정 관리</h2>
-      <p class="text-gray-600">관리자 및 간사 계정을 관리합니다.</p>
-            </div>
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <p class="text-gray-600">계정 관리 기능은 구현 중입니다.</p>
-        </div>
-    `;
+  await UsersModule.loadUsersList();
 }
 
 // 시스템 설정 로드

@@ -3,18 +3,21 @@
 const SettingsModule = {
   serviceTypes: [],
   teachers: [],
+  departments: [],
   
   // 시스템 설정 페이지 로드
   async loadSettingsPage() {
     try {
       const token = localStorage.getItem('token');
-      const [serviceTypesRes, teachersRes] = await Promise.all([
+      const [serviceTypesRes, teachersRes, departmentsRes] = await Promise.all([
         axios.get(`${API_URL}/settings/service-types`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/settings/teachers`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/settings/teachers`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/settings/departments`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       
       this.serviceTypes = serviceTypesRes.data.serviceTypes || [];
       this.teachers = teachersRes.data.teachers || [];
+      this.departments = departmentsRes.data.departments || [];
       this.renderSettingsPage();
     } catch (error) {
       console.error('Load settings error:', error);
@@ -32,7 +35,7 @@ const SettingsModule = {
         <p class="text-gray-600">예배 구분, 선생님 등을 관리합니다.</p>
       </div>
       
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- 예배 구분 설정 -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div class="flex items-center justify-between mb-4">
@@ -96,6 +99,38 @@ const SettingsModule = {
               </div>
             `).join('')}
             ${this.teachers.length === 0 ? '<p class="text-gray-500 text-sm">등록된 선생님이 없습니다.</p>' : ''}
+          </div>
+        </div>
+        
+        <!-- 부서 설정 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">
+              <i class="fas fa-layer-group text-purple-600 mr-2"></i>부서 설정
+            </h3>
+            <button onclick="SettingsModule.showAddDepartmentModal()" class="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-sm">
+              <i class="fas fa-plus mr-1"></i>추가
+            </button>
+          </div>
+          
+          <div class="space-y-2">
+            ${this.departments.map(dept => `
+              <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <div class="flex items-center space-x-3">
+                  <i class="fas fa-grip-vertical text-gray-400"></i>
+                  <span class="font-medium text-gray-900">${dept.name}</span>
+                </div>
+                <div class="flex space-x-2">
+                  <button onclick="SettingsModule.editDepartment(${dept.id})" class="text-blue-600 hover:text-blue-800 p-1">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button onclick="SettingsModule.deleteDepartment(${dept.id})" class="text-red-600 hover:text-red-800 p-1">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+            ${this.departments.length === 0 ? '<p class="text-gray-500 text-sm">등록된 부서가 없습니다.</p>' : ''}
           </div>
         </div>
       </div>
@@ -377,6 +412,129 @@ const SettingsModule = {
     } catch (error) {
       console.error('Delete teacher error:', error);
       showToast(error.response?.data?.error || '선생님 삭제에 실패했습니다.', 'error');
+    }
+  },
+  
+  // 부서 추가 모달
+  showAddDepartmentModal() {
+    showModal('부서 추가', `
+      <form id="add-department-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">부서 이름 *</label>
+          <input type="text" name="name" required class="input-modern w-full" placeholder="예: 유초등부">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">정렬 순서</label>
+          <input type="number" name="display_order" value="${this.departments.length + 1}" class="input-modern w-full">
+        </div>
+        
+        <div class="flex justify-end space-x-3 pt-4">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+            취소
+          </button>
+          <button type="submit" class="btn-pastel-primary px-6 py-2 rounded-lg">
+            추가
+          </button>
+        </div>
+      </form>
+    `);
+    
+    document.getElementById('add-department-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.handleAddDepartment(new FormData(e.target));
+    });
+  },
+  
+  // 부서 추가 처리
+  async handleAddDepartment(formData) {
+    try {
+      const token = localStorage.getItem('token');
+      const data = Object.fromEntries(formData);
+      
+      await axios.post(`${API_URL}/settings/departments`, data, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      showToast('부서가 추가되었습니다.', 'success');
+      closeModal();
+      this.loadSettingsPage();
+    } catch (error) {
+      console.error('Add department error:', error);
+      showToast(error.response?.data?.error || '부서 추가에 실패했습니다.', 'error');
+    }
+  },
+  
+  // 부서 수정
+  async editDepartment(id) {
+    const department = this.departments.find(d => d.id === id);
+    if (!department) return;
+    
+    showModal('부서 수정', `
+      <form id="edit-department-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">부서 이름 *</label>
+          <input type="text" name="name" value="${department.name}" required class="input-modern w-full">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">정렬 순서</label>
+          <input type="number" name="display_order" value="${department.display_order}" class="input-modern w-full">
+        </div>
+        
+        <div class="flex justify-end space-x-3 pt-4">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+            취소
+          </button>
+          <button type="submit" class="btn-pastel-primary px-6 py-2 rounded-lg">
+            저장
+          </button>
+        </div>
+      </form>
+    `);
+    
+    document.getElementById('edit-department-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.handleEditDepartment(id, new FormData(e.target));
+    });
+  },
+  
+  // 부서 수정 처리
+  async handleEditDepartment(id, formData) {
+    try {
+      const token = localStorage.getItem('token');
+      const data = Object.fromEntries(formData);
+      
+      await axios.put(`${API_URL}/settings/departments/${id}`, data, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      showToast('부서가 수정되었습니다.', 'success');
+      closeModal();
+      this.loadSettingsPage();
+    } catch (error) {
+      console.error('Edit department error:', error);
+      showToast(error.response?.data?.error || '부서 수정에 실패했습니다.', 'error');
+    }
+  },
+  
+  // 부서 삭제
+  async deleteDepartment(id) {
+    if (!confirm('이 부서를 삭제하시겠습니까?')) {
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/settings/departments/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      showToast('부서가 삭제되었습니다.', 'success');
+      this.loadSettingsPage();
+    } catch (error) {
+      console.error('Delete department error:', error);
+      showToast(error.response?.data?.error || '부서 삭제에 실패했습니다.', 'error');
     }
   }
 };
