@@ -5,10 +5,17 @@ import type { CloudflareBindings } from '../types';
 const JWT_SECRET = 'your-secret-key-change-in-production';
 
 // 간단한 JWT 생성 (실제로는 hono/jwt 사용 권장)
-export async function createToken(userId: number, role: string): Promise<string> {
+export async function createToken(
+  userId: number, 
+  role: string, 
+  departmentId: number | null = null,
+  isSuperAdmin: boolean = false
+): Promise<string> {
   const payload = {
     userId,
     role,
+    departmentId,
+    isSuperAdmin,
     exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) // 24시간
   };
   

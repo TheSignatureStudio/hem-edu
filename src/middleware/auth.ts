@@ -23,6 +23,8 @@ export async function authMiddleware(c: Context<{ Bindings: CloudflareBindings }
     // 사용자 정보를 컨텍스트에 저장
     c.set('userId', payload.userId);
     c.set('userRole', payload.role);
+    c.set('userDepartmentId', payload.departmentId);
+    c.set('isSuperAdmin', payload.isSuperAdmin || false);
     
     await next();
   } catch (error) {
@@ -263,4 +265,50 @@ export async function getTeacherAccessibleStudents(
   courseStudents.results.forEach((s: any) => studentIds.add(s.student_id));
   
   return Array.from(studentIds);
+}
+
+// 부서별 접근 제어 미들웨어
+export async function requireDepartmentAccess(c: Context<{ Bindings: CloudflareBindings }>, next: Next) {
+  const userId = c.get('userId');
+  const userRole = c.get('userRole');
+  const userDepartmentId = c.get('userDepartmentId');
+  const isSuperAdmin = c.get('isSuperAdmin');
+  const targetDepartmentId = c.req.param('department_id') || c.req.query('department_id');
+  
+  // 최고관리자는 모든 부서 접근 가능
+  if (isSuperAdmin) {
+    await next();
+    return;
+  }
+  
+  // 부서 ID가 없으면 통과 (전체 조회는 부서 필터링으로 처리)
+  if (!targetDepartmentId) {
+    await next();
+    return;
+  }
+  
+  // 사용자의 부서와 요청한 부서가 일치하는지 확인
+  if (userDepartmentId && Number(userDepartmentId) === Number(targetDepartmentId)) {
+    await next();
+    return;
+  }
+  
+  return c.json({ 
+    error: 'Forbidden: You do not have access to this department',
+    your_department: userDepartmentId,
+    requested_department: targetDepartmentId
+  }, 403);
+}
+
+// 최고관리자만 접근 가능
+export async function requireSuperAdmin(c: Context<{ Bindings: CloudflareBindings }>, next: Next) {
+  const isSuperAdmin = c.get('isSuperAdmin');
+  
+  if (!isSuperAdmin) {
+    return c.json({ 
+      error: 'Forbidden: Super admin access required' 
+    }, 403);
+  }
+  
+  await next();
 }

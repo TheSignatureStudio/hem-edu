@@ -15,9 +15,9 @@ auth.post('/login', async (c) => {
   try {
     const db = c.env.DB;
     
-    // 사용자 조회
+    // 사용자 조회 (부서 정보 포함)
     const user = await db.prepare(
-      'SELECT * FROM users WHERE username = ? AND is_active = 1'
+      'SELECT id, username, password_hash, email, name, role, phone, department_id, is_super_admin FROM users WHERE username = ? AND is_active = 1'
     ).bind(username).first();
     
     if (!user) {
@@ -33,8 +33,13 @@ auth.post('/login', async (c) => {
       return c.json({ error: 'Invalid credentials' }, 401);
     }
     
-    // JWT 토큰 생성
-    const token = await createToken(user.id as number, user.role as string);
+    // JWT 토큰 생성 (부서 정보 및 최고관리자 여부 포함)
+    const token = await createToken(
+      user.id as number, 
+      user.role as string,
+      user.department_id as number | null,
+      user.is_super_admin === 1 || user.is_super_admin === true
+    );
     
     // 사용자 역할에 따른 추가 정보 조회
     let additionalInfo: any = {};
@@ -59,7 +64,9 @@ auth.post('/login', async (c) => {
         email: user.email,
         name: user.name,
         role: user.role,
-        phone: user.phone
+        phone: user.phone,
+        department_id: user.department_id,
+        is_super_admin: user.is_super_admin === 1 || user.is_super_admin === true
       },
       ...additionalInfo
     });
