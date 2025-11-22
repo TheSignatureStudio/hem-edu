@@ -1,188 +1,180 @@
-import { Hono } from 'hono'
+import { Hono } from 'hono';
+import type { CloudflareBindings } from '../types';
 
-const counseling = new Hono<{ Bindings: { DB: D1Database } }>()
+const counseling = new Hono<{ Bindings: CloudflareBindings }>();
 
-// ============================================
 // 상담기록 목록 조회
-// ============================================
 counseling.get('/', async (c) => {
   try {
-    const { semester_id, student_id } = c.req.query()
+    const db = c.env.DB;
+    const { member_id, counseling_type, limit = 100 } = c.req.query();
     
     let query = `
       SELECT 
         cr.*,
-        u.name as student_name,
-        s.student_number,
-        sem.name as semester_name
-      FROM counseling_records cr
-      LEFT JOIN students s ON cr.student_id = s.id
-      LEFT JOIN users u ON s.user_id = u.id
-      LEFT JOIN semesters sem ON cr.semester_id = sem.id
+        m.name as member_name,
+        m.member_number
+      FROM counseling cr
+      JOIN members m ON cr.member_id = m.id
       WHERE 1=1
-    `
+    `;
     
-    const params: any[] = []
+    const params: any[] = [];
     
-    if (semester_id) {
-      query += ' AND cr.semester_id = ?'
-      params.push(parseInt(semester_id))
+    if (member_id) {
+      query += ' AND cr.member_id = ?';
+      params.push(parseInt(member_id));
     }
     
-    if (student_id) {
-      query += ' AND cr.student_id = ?'
-      params.push(parseInt(student_id))
+    if (counseling_type) {
+      query += ' AND cr.counseling_type = ?';
+      params.push(counseling_type);
     }
     
-    query += ' ORDER BY cr.counseling_date DESC, cr.created_at DESC'
+    query += ' ORDER BY cr.counseling_date DESC, cr.created_at DESC LIMIT ?';
+    params.push(parseInt(limit as string));
     
-    const stmt = c.env.DB.prepare(query).bind(...params)
-    const { results } = await stmt.all()
+    const { results } = await db.prepare(query).bind(...params).all();
     
-    return c.json({ records: results || [] })
+    return c.json({ records: results || [] });
   } catch (error: any) {
-    console.error('상담기록 조회 오류:', error)
-    return c.json({ error: error.message }, 500)
+    console.error('상담기록 조회 오류:', error);
+    return c.json({ error: error.message }, 500);
   }
-})
+});
 
-// ============================================
 // 상담기록 단일 조회
-// ============================================
 counseling.get('/:id', async (c) => {
   try {
-    const id = parseInt(c.req.param('id'))
+    const db = c.env.DB;
+    const id = parseInt(c.req.param('id'));
     
-    const stmt = c.env.DB.prepare(`
+    const result = await db.prepare(`
       SELECT 
         cr.*,
-        u.name as student_name,
-        s.student_number,
-        sem.name as semester_name
-      FROM counseling_records cr
-      LEFT JOIN students s ON cr.student_id = s.id
-      LEFT JOIN users u ON s.user_id = u.id
-      LEFT JOIN semesters sem ON cr.semester_id = sem.id
+        m.name as member_name,
+        m.member_number,
+        m.phone
+      FROM counseling cr
+      JOIN members m ON cr.member_id = m.id
       WHERE cr.id = ?
-    `).bind(id)
-    
-    const result = await stmt.first()
+    `).bind(id).first();
     
     if (!result) {
-      return c.json({ error: '상담기록을 찾을 수 없습니다' }, 404)
+      return c.json({ error: '상담기록을 찾을 수 없습니다' }, 404);
     }
     
-    return c.json(result)
+    return c.json(result);
   } catch (error: any) {
-    console.error('상담기록 조회 오류:', error)
-    return c.json({ error: error.message }, 500)
+    console.error('상담기록 조회 오류:', error);
+    return c.json({ error: error.message }, 500);
   }
-})
+});
 
-// ============================================
-// 상담기록 추가
-// ============================================
+// 상담기록 생성
 counseling.post('/', async (c) => {
   try {
-    const data = await c.req.json()
+    const db = c.env.DB;
+    const { member_id, counseling_date, counseling_type, counselor, content, follow_up, is_private, recorded_by } = await c.req.json();
     
-    // 필수 필드 검증
-    if (!data.student_id || !data.semester_id || !data.counseling_date || !data.topic || !data.content) {
-      return c.json({ error: '필수 필드가 누락되었습니다' }, 400)
+    if (!member_id || !counseling_date || !counselor || !content) {
+      return c.json({ error: '필수 항목을 입력해주세요' }, 400);
     }
     
-    const stmt = c.env.DB.prepare(`
-      INSERT INTO counseling_records (
-        student_id, semester_id, counseling_date, counseling_type, counselor_name,
-        topic, content, follow_up, is_confidential
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    const result = await db.prepare(`
+      INSERT INTO counseling (
+        member_id, counseling_date, counseling_type, counselor, 
+        content, follow_up, is_private, recorded_by
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      data.student_id,
-      data.semester_id,
-      data.counseling_date,
-      data.counseling_type || null,
-      data.counselor_name || null,
-      data.topic,
-      data.content,
-      data.follow_up || null,
-      data.is_confidential ? 1 : 0
-    )
+      member_id,
+      counseling_date,
+      counseling_type || '개인상담',
+      counselor,
+      content,
+      follow_up || null,
+      is_private !== undefined ? is_private : 1,
+      recorded_by || null
+    ).run();
     
-    const result = await stmt.run()
-    
-    return c.json({
-      message: '상담기록이 추가되었습니다',
-      id: result.meta.last_row_id
-    }, 201)
+    return c.json({ 
+      message: '상담기록이 저장되었습니다',
+      id: result.meta.last_row_id 
+    });
   } catch (error: any) {
-    console.error('상담기록 추가 오류:', error)
-    return c.json({ error: error.message }, 500)
+    console.error('상담기록 생성 오류:', error);
+    return c.json({ error: error.message }, 500);
   }
-})
+});
 
-// ============================================
 // 상담기록 수정
-// ============================================
 counseling.put('/:id', async (c) => {
   try {
-    const id = parseInt(c.req.param('id'))
-    const data = await c.req.json()
+    const db = c.env.DB;
+    const id = parseInt(c.req.param('id'));
+    const { counseling_date, counseling_type, counselor, content, follow_up, is_private } = await c.req.json();
     
-    // 필수 필드 검증
-    if (!data.student_id || !data.semester_id || !data.counseling_date || !data.topic || !data.content) {
-      return c.json({ error: '필수 필드가 누락되었습니다' }, 400)
+    const updates: string[] = [];
+    const params: any[] = [];
+    
+    if (counseling_date) {
+      updates.push('counseling_date = ?');
+      params.push(counseling_date);
+    }
+    if (counseling_type) {
+      updates.push('counseling_type = ?');
+      params.push(counseling_type);
+    }
+    if (counselor) {
+      updates.push('counselor = ?');
+      params.push(counselor);
+    }
+    if (content) {
+      updates.push('content = ?');
+      params.push(content);
+    }
+    if (follow_up !== undefined) {
+      updates.push('follow_up = ?');
+      params.push(follow_up);
+    }
+    if (is_private !== undefined) {
+      updates.push('is_private = ?');
+      params.push(is_private);
     }
     
-    const stmt = c.env.DB.prepare(`
-      UPDATE counseling_records
-      SET student_id = ?, semester_id = ?, counseling_date = ?, counseling_type = ?,
-          counselor_name = ?, topic = ?, content = ?, follow_up = ?, is_confidential = ?
+    if (updates.length === 0) {
+      return c.json({ error: '수정할 내용이 없습니다' }, 400);
+    }
+    
+    params.push(id);
+    
+    await db.prepare(`
+      UPDATE counseling 
+      SET ${updates.join(', ')}
       WHERE id = ?
-    `).bind(
-      data.student_id,
-      data.semester_id,
-      data.counseling_date,
-      data.counseling_type || null,
-      data.counselor_name || null,
-      data.topic,
-      data.content,
-      data.follow_up || null,
-      data.is_confidential ? 1 : 0,
-      id
-    )
+    `).bind(...params).run();
     
-    const result = await stmt.run()
-    
-    if (result.meta.changes === 0) {
-      return c.json({ error: '상담기록을 찾을 수 없습니다' }, 404)
-    }
-    
-    return c.json({ message: '상담기록이 수정되었습니다' })
+    return c.json({ message: '상담기록이 수정되었습니다' });
   } catch (error: any) {
-    console.error('상담기록 수정 오류:', error)
-    return c.json({ error: error.message }, 500)
+    console.error('상담기록 수정 오류:', error);
+    return c.json({ error: error.message }, 500);
   }
-})
+});
 
-// ============================================
 // 상담기록 삭제
-// ============================================
 counseling.delete('/:id', async (c) => {
   try {
-    const id = parseInt(c.req.param('id'))
+    const db = c.env.DB;
+    const id = parseInt(c.req.param('id'));
     
-    const stmt = c.env.DB.prepare('DELETE FROM counseling_records WHERE id = ?').bind(id)
-    const result = await stmt.run()
+    await db.prepare('DELETE FROM counseling WHERE id = ?').bind(id).run();
     
-    if (result.meta.changes === 0) {
-      return c.json({ error: '상담기록을 찾을 수 없습니다' }, 404)
-    }
-    
-    return c.json({ message: '상담기록이 삭제되었습니다' })
+    return c.json({ message: '상담기록이 삭제되었습니다' });
   } catch (error: any) {
-    console.error('상담기록 삭제 오류:', error)
-    return c.json({ error: error.message }, 500)
+    console.error('상담기록 삭제 오류:', error);
+    return c.json({ error: error.message }, 500);
   }
-})
+});
 
-export default counseling
+export default counseling;
