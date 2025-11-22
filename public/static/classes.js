@@ -367,22 +367,66 @@ const ClassesModule = {
           <strong>${classInfo.name}</strong>에 배정할 학생을 선택하세요.
         </p>
         
+        <!-- 검색 필터 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">학생 검색</label>
+          <input 
+            type="text" 
+            id="student-search" 
+            placeholder="이름, 학년으로 검색..."
+            class="input-modern w-full"
+            onkeyup="ClassesModule.filterStudentsInModal()"
+          >
+        </div>
+        
+        <!-- 학생 리스트 (라디오 버튼 방식) -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">학생 선택 *</label>
-          <select name="member_id" required class="input-modern w-full">
-            <option value="">선택하세요</option>
-            ${availableStudents.map(m => `
-              <option value="${m.id}">
-                ${m.name} ${m.school_grade ? `(${m.school_grade})` : ''} - ${m.member_number}
-              </option>
-            `).join('')}
-          </select>
-          ${availableStudents.length === 0 ? `
-            <p class="text-sm text-yellow-600 mt-2">
+          ${availableStudents.length > 0 ? `
+            <div id="student-list" class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
+              ${availableStudents.map((m, index) => {
+                const age = m.birth_date ? new Date().getFullYear() - new Date(m.birth_date).getFullYear() : '';
+                return `
+                  <label 
+                    class="student-item flex items-center p-3 hover:bg-purple-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    data-name="${m.name.toLowerCase()}"
+                    data-grade="${(m.school_grade || '').toLowerCase()}"
+                  >
+                    <input 
+                      type="radio" 
+                      name="member_id" 
+                      value="${m.id}" 
+                      required
+                      class="mr-3"
+                      id="student-${m.id}"
+                    >
+                    <div class="flex-1">
+                      <div class="flex items-center space-x-2">
+                        <span class="font-medium text-gray-900">${m.name}</span>
+                        ${m.school_grade ? `
+                          <span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
+                            ${m.school_grade}
+                          </span>
+                        ` : ''}
+                        ${age ? `<span class="text-xs text-gray-500">${age}세</span>` : ''}
+                      </div>
+                      <p class="text-xs text-gray-500 mt-1">
+                        ${m.member_number} ${m.phone ? `· ${m.phone}` : ''}
+                      </p>
+                    </div>
+                  </label>
+                `;
+              }).join('')}
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+              총 <span id="student-count">${availableStudents.length}</span>명의 학생
+            </p>
+          ` : `
+            <p class="text-sm text-yellow-600 p-4 bg-yellow-50 rounded-lg">
               <i class="fas fa-info-circle mr-1"></i>
               배정 가능한 학생이 없습니다.
             </p>
-          ` : ''}
+          `}
         </div>
         
         <div class="flex justify-end space-x-3 pt-4">
@@ -400,6 +444,30 @@ const ClassesModule = {
       e.preventDefault();
       this.handleAssignStudent(classId, new FormData(e.target));
     });
+  },
+  
+  // 모달 내 학생 검색 필터
+  filterStudentsInModal() {
+    const searchTerm = document.getElementById('student-search').value.toLowerCase();
+    const studentItems = document.querySelectorAll('.student-item');
+    let visibleCount = 0;
+    
+    studentItems.forEach(item => {
+      const name = item.dataset.name || '';
+      const grade = item.dataset.grade || '';
+      
+      if (name.includes(searchTerm) || grade.includes(searchTerm)) {
+        item.style.display = 'flex';
+        visibleCount++;
+      } else {
+        item.style.display = 'none';
+      }
+    });
+    
+    const countElement = document.getElementById('student-count');
+    if (countElement) {
+      countElement.textContent = visibleCount;
+    }
   },
   
   // 학생 배정 처리
