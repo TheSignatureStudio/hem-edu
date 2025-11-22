@@ -215,7 +215,7 @@ const MembersModule = {
     return rows;
   },
   
-  // 교인 추가 모달
+  // 학생 추가 모달
   async showAddModal() {
     const nextNumber = await this.getNextMemberNumber();
     
@@ -351,7 +351,7 @@ const MembersModule = {
     }
   },
   
-  // 교인 추가 처리
+  // 학생 추가 처리
   async handleAddMember(formData) {
     try {
       const token = localStorage.getItem('token');
@@ -370,7 +370,7 @@ const MembersModule = {
     }
   },
   
-  // 교인 상세보기
+  // 학생 상세보기
   async viewMember(id) {
     try {
       const token = localStorage.getItem('token');
@@ -382,11 +382,11 @@ const MembersModule = {
       this.renderMemberDetail(response.data);
     } catch (error) {
       console.error('View member error:', error);
-      showToast('교인 정보를 불러오는데 실패했습니다.', 'error');
+      showToast('학생 정보를 불러오는데 실패했습니다.', 'error');
     }
   },
   
-  // 교인 상세 렌더링
+  // 학생 상세 렌더링
   renderMemberDetail(data) {
     const { member, groups, attendance, counseling, services, donationStats } = data;
     
@@ -716,7 +716,7 @@ const MembersModule = {
       });
     } catch (error) {
       console.error('Edit member error:', error);
-      showToast('교인 정보를 불러오는데 실패했습니다.', 'error');
+      showToast('학생 정보를 불러오는데 실패했습니다.', 'error');
     }
   },
   
@@ -752,7 +752,7 @@ const MembersModule = {
     }
   },
   
-  // 교인 수정 처리
+  // 학생 수정 처리
   async handleEditMember(id, formData) {
     try {
       const token = localStorage.getItem('token');
@@ -767,13 +767,13 @@ const MembersModule = {
       this.loadMembersList();
     } catch (error) {
       console.error('Update member error:', error);
-      showToast(error.response?.data?.error || '교인 정보 수정에 실패했습니다.', 'error');
+      showToast(error.response?.data?.error || '학생 정보 수정에 실패했습니다.', 'error');
     }
   },
   
-  // 교인 삭제
+  // 학생 삭제
   async deleteMember(id) {
-    if (!confirm('정말 이 교인을 삭제하시겠습니까?')) {
+    if (!confirm('정말 이 학생을 삭제하시겠습니까?')) {
       return;
     }
     
@@ -783,11 +783,11 @@ const MembersModule = {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      showToast('교인이 삭제되었습니다.', 'success');
+      showToast('학생이 삭제되었습니다.', 'success');
       this.loadMembersList();
     } catch (error) {
       console.error('Delete member error:', error);
-      showToast(error.response?.data?.error || '교인 삭제에 실패했습니다.', 'error');
+      showToast(error.response?.data?.error || '학생 삭제에 실패했습니다.', 'error');
     }
   }
 };
