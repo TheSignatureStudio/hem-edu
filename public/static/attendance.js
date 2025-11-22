@@ -21,6 +21,16 @@ const AttendanceModule = {
       this.members = attendanceRes.data.members || [];
       this.serviceTypes = serviceTypesRes.data.serviceTypes || [];
       
+      // 사용자의 부서에 맞는 예배 구분만 필터링 (최고관리자가 아니면)
+      if (!currentUser?.is_super_admin && currentUser?.department_id) {
+        // 자신의 부서 예배 + 통합예배만 표시
+        this.serviceTypes = this.serviceTypes.filter(st => 
+          !st.department_id || 
+          st.department_id === currentUser.department_id || 
+          st.name === '통합예배'
+        );
+      }
+      
       // 기본 예배 구분 설정
       if (this.serviceTypes.length > 0 && !this.currentServiceType) {
         this.currentServiceType = this.serviceTypes[0].name;

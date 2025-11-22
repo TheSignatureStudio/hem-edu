@@ -1,26 +1,43 @@
 import { Hono } from 'hono';
 import type { CloudflareBindings } from '../types';
+import { authMiddleware, requireDepartmentAccess } from '../middleware/auth';
 
 const members = new Hono<{ Bindings: CloudflareBindings }>();
 
-// 모든 교인 조회
-members.get('/', async (c) => {
+// 모든 미들웨어 적용
+members.use('*', authMiddleware);
+
+// 모든 학생 조회 (부서별 필터링)
+members.get('/', requireDepartmentAccess, async (c) => {
   try {
     const db = c.env.DB;
-    const { status, search, family_id, group_id, limit = 100, offset = 0 } = c.req.query();
+    const userDepartmentId = c.get('userDepartmentId');
+    const isSuperAdmin = c.get('isSuperAdmin');
+    const { status, search, family_id, group_id, department_id, limit = 100, offset = 0 } = c.req.query();
     
     let query = `
       SELECT 
         m.*,
         f.family_name,
         c.name as class_name,
-        c.grade_level
+        c.grade_level,
+        d.name as department_name
       FROM members m
       LEFT JOIN families f ON m.family_id = f.id
       LEFT JOIN classes c ON m.class_id = c.id
+      LEFT JOIN departments d ON m.department_id = d.id
       WHERE 1=1
     `;
     const params: any[] = [];
+    
+    // 최고관리자가 아니면 자신의 부서만 조회
+    if (!isSuperAdmin && userDepartmentId) {
+      query += ' AND m.department_id = ?';
+      params.push(userDepartmentId);
+    } else if (department_id) {
+      query += ' AND m.department_id = ?';
+      params.push(Number(department_id));
+    }
     
     if (status) {
       query += ' AND m.member_status = ?';
@@ -48,10 +65,10 @@ members.get('/', async (c) => {
     
     const { results } = await db.prepare(query).bind(...params).all();
     
-    return c.json({ members: results });
-  } catch (error) {
+    return c.json({ members: results || [] });
+  } catch (error: any) {
     console.error('Get members error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    return c.json({ error: error?.message || 'Internal server error', members: [] }, 500);
   }
 });
 

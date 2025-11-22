@@ -1,23 +1,40 @@
 import { Hono } from 'hono';
 import type { CloudflareBindings } from '../types';
+import { authMiddleware, requireDepartmentAccess } from '../middleware/auth';
 
 const classes = new Hono<{ Bindings: CloudflareBindings }>();
 
-// 모든 반 조회
-classes.get('/', async (c) => {
+// 모든 미들웨어 적용
+classes.use('*', authMiddleware);
+
+// 모든 반 조회 (부서별 필터링)
+classes.get('/', requireDepartmentAccess, async (c) => {
   try {
     const db = c.env.DB;
-    const { grade_level, is_active } = c.req.query();
+    const userDepartmentId = c.get('userDepartmentId');
+    const isSuperAdmin = c.get('isSuperAdmin');
+    const { grade_level, is_active, department_id } = c.req.query();
     
     let query = `
       SELECT 
         c.*,
+        d.name as department_name,
         COUNT(m.id) as student_count
       FROM classes c
+      LEFT JOIN departments d ON c.department_id = d.id
       LEFT JOIN members m ON c.id = m.class_id AND m.member_status = 'active'
       WHERE 1=1
     `;
     const params: any[] = [];
+    
+    // 최고관리자가 아니면 자신의 부서만 조회
+    if (!isSuperAdmin && userDepartmentId) {
+      query += ' AND c.department_id = ?';
+      params.push(userDepartmentId);
+    } else if (department_id) {
+      query += ' AND c.department_id = ?';
+      params.push(Number(department_id));
+    }
     
     if (grade_level) {
       query += ' AND c.grade_level = ?';
@@ -33,10 +50,10 @@ classes.get('/', async (c) => {
     
     const { results } = await db.prepare(query).bind(...params).all();
     
-    return c.json({ classes: results });
-  } catch (error) {
+    return c.json({ classes: results || [] });
+  } catch (error: any) {
     console.error('Get classes error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    return c.json({ error: error?.message || 'Internal server error', classes: [] }, 500);
   }
 });
 
@@ -75,21 +92,27 @@ classes.get('/:id', async (c) => {
 });
 
 // 반 생성
-classes.post('/', async (c) => {
+classes.post('/', requireDepartmentAccess, async (c) => {
   try {
     const db = c.env.DB;
-    const { name, grade_level, teacher_name, teacher_phone, room_number, meeting_time, description } = await c.req.json();
+    const userDepartmentId = c.get('userDepartmentId');
+    const isSuperAdmin = c.get('isSuperAdmin');
+    const { name, grade_level, department_id, teacher_name, teacher_phone, room_number, meeting_time, description } = await c.req.json();
     
     if (!name || !grade_level) {
       return c.json({ error: 'Missing required fields: name, grade_level' }, 400);
     }
     
+    // 부서 ID 설정 (최고관리자가 아니면 자신의 부서로 고정)
+    const finalDepartmentId = (!isSuperAdmin && userDepartmentId) ? userDepartmentId : (department_id || null);
+    
     const result = await db.prepare(`
-      INSERT INTO classes (name, grade_level, teacher_name, teacher_phone, room_number, meeting_time, description)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO classes (name, grade_level, department_id, teacher_name, teacher_phone, room_number, meeting_time, description)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       name,
       grade_level,
+      finalDepartmentId,
       teacher_name || null,
       teacher_phone || null,
       room_number || null,
@@ -122,7 +145,7 @@ classes.put('/:id', async (c) => {
     const params: any[] = [];
     
     const allowedFields = [
-      'name', 'grade_level', 'teacher_name', 'teacher_phone', 
+      'name', 'grade_level', 'department_id', 'teacher_name', 'teacher_phone', 
       'room_number', 'meeting_time', 'description', 'is_active'
     ];
     

@@ -33,15 +33,14 @@ const ClassesModule = {
     const content = document.getElementById('main-content');
     
     // 부서별로 그룹화
-    const departments = {
-      '영아부': this.currentClasses.filter(c => c.grade_level === '영아부'),
-      '유치부': this.currentClasses.filter(c => c.grade_level === '유치부'),
-      '유년부': this.currentClasses.filter(c => c.grade_level === '유년부'),
-      '초등부': this.currentClasses.filter(c => c.grade_level === '초등부'),
-      '중등부': this.currentClasses.filter(c => c.grade_level === '중등부'),
-      '고등부': this.currentClasses.filter(c => c.grade_level === '고등부'),
-      '청년부': this.currentClasses.filter(c => c.grade_level === '청년부')
-    };
+    const classesByDepartment = {};
+    this.currentClasses.forEach(cls => {
+      const deptName = cls.department_name || '부서 미지정';
+      if (!classesByDepartment[deptName]) {
+        classesByDepartment[deptName] = [];
+      }
+      classesByDepartment[deptName].push(cls);
+    });
     
     content.innerHTML = `
       <div class="mb-8 flex items-center justify-between">
@@ -59,13 +58,30 @@ const ClassesModule = {
         </div>
       </div>
       
+      <!-- 부서 필터 (최고관리자만) -->
+      ${currentUser?.is_super_admin ? `
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">부서 선택</label>
+          <select 
+            id="department-filter" 
+            class="input-modern w-full md:w-64"
+            onchange="ClassesModule.filterByDepartment(this.value)"
+          >
+            <option value="">전체 부서</option>
+            ${this.departments.map(d => `
+              <option value="${d.id}">${d.name}</option>
+            `).join('')}
+          </select>
+        </div>
+      ` : ''}
+      
       <!-- 부서별 반 목록 -->
       <div class="space-y-8">
-        ${Object.entries(departments).map(([dept, classes]) => `
+        ${Object.entries(classesByDepartment).map(([deptName, classes]) => `
           ${classes.length > 0 ? `
             <div>
               <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <i class="fas fa-graduation-cap text-purple-600 mr-2"></i>${dept}
+                <i class="fas fa-graduation-cap text-purple-600 mr-2"></i>${deptName}
               </h3>
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 ${classes.map(cls => this.renderClassCard(cls)).join('')}
@@ -153,12 +169,34 @@ const ClassesModule = {
             <input type="text" name="name" required class="input-modern w-full" placeholder="예: 초등부 1반">
           </div>
           <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">반 이름 *</label>
+            <input type="text" name="name" required class="input-modern w-full" placeholder="예: 초등부 1반">
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">부서 *</label>
-            <select name="grade_level" required class="input-modern w-full">
-              <option value="">선택하세요</option>
+            <select name="department_id" required class="input-modern w-full" ${!currentUser?.is_super_admin ? 'disabled' : ''}>
               ${this.departments.map(d => `
-                <option value="${d.name}">${d.name}</option>
+                <option value="${d.id}" ${d.id === (currentUser?.department_id || this.departments[0]?.id) ? 'selected' : ''}>
+                  ${d.name}
+                </option>
               `).join('')}
+            </select>
+            ${!currentUser?.is_super_admin ? '<input type="hidden" name="department_id" value="' + (currentUser?.department_id || this.departments[0]?.id) + '">' : ''}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">학년 *</label>
+            <select name="grade_level" required class="input-modern w-full">
+              <option value="">선택</option>
+              <option value="영아부">영아부</option>
+              <option value="유치부">유치부</option>
+              <option value="유년부">유년부</option>
+              <option value="초등부">초등부</option>
+              <option value="중등부">중등부</option>
+              <option value="고등부">고등부</option>
+              <option value="청년부">청년부</option>
             </select>
           </div>
         </div>
@@ -762,6 +800,25 @@ const ClassesModule = {
     } catch (error) {
       console.error('Update grades error:', error);
       showToast('학년 갱신에 실패했습니다.', 'error');
+    }
+  },
+  
+  // 부서별 필터링
+  async filterByDepartment(departmentId) {
+    const deptId = departmentId ? Number(departmentId) : null;
+    try {
+      const token = localStorage.getItem('token');
+      const params = deptId ? { department_id: deptId } : {};
+      const response = await axios.get(`${API_URL}/classes`, {
+        params,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      this.currentClasses = response.data.classes || [];
+      this.renderClassesList();
+    } catch (error) {
+      console.error('Filter classes error:', error);
+      showToast('반 목록을 불러오는데 실패했습니다.', 'error');
     }
   },
   

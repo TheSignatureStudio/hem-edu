@@ -1,7 +1,11 @@
 import { Hono } from 'hono';
 import type { CloudflareBindings } from '../types';
+import { authMiddleware, requireDepartmentAccess } from '../middleware/auth';
 
 const attendance = new Hono<{ Bindings: CloudflareBindings }>();
+
+// 모든 미들웨어 적용
+attendance.use('*', authMiddleware);
 
 // 출석 기록 조회
 attendance.get('/', async (c) => {
@@ -51,23 +55,27 @@ attendance.get('/', async (c) => {
   }
 });
 
-// 날짜별 출석 조회
-attendance.get('/by-date', async (c) => {
+// 날짜별 출석 조회 (부서별 필터링)
+attendance.get('/by-date', requireDepartmentAccess, async (c) => {
   try {
     const db = c.env.DB;
+    const userDepartmentId = c.get('userDepartmentId');
+    const isSuperAdmin = c.get('isSuperAdmin');
     const { date, service_type = '주일예배' } = c.req.query();
     
     if (!date) {
       return c.json({ error: 'date parameter is required' }, 400);
     }
     
-    // 모든 활성 교인과 해당 날짜의 출석 기록
-    const query = `
+    // 활성 학생과 해당 날짜의 출석 기록 (부서별 필터링)
+    let query = `
       SELECT 
         m.id as member_id,
         m.member_number,
         m.name,
         m.phone,
+        m.parent_phone,
+        m.parent_name,
         m.family_id,
         f.family_name,
         a.id as attendance_id,
@@ -80,14 +88,22 @@ attendance.get('/by-date', async (c) => {
         AND a.attendance_date = ? 
         AND a.service_type = ?
       WHERE m.member_status = 'active'
-      ORDER BY m.name
     `;
+    const params: any[] = [date, service_type];
     
-    const { results } = await db.prepare(query).bind(date, service_type).all();
-    return c.json({ members: results });
-  } catch (error) {
+    // 최고관리자가 아니면 자신의 부서만 조회
+    if (!isSuperAdmin && userDepartmentId) {
+      query += ' AND m.department_id = ?';
+      params.push(userDepartmentId);
+    }
+    
+    query += ' ORDER BY m.name';
+    
+    const { results } = await db.prepare(query).bind(...params).all();
+    return c.json({ members: results || [] });
+  } catch (error: any) {
     console.error('Get by-date attendance error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    return c.json({ error: error?.message || 'Internal server error', members: [] }, 500);
   }
 });
 
