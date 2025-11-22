@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 심플한 파스텔 컬러 팔레트 */
+:root {
+  --pastel-purple: #E9D5FF;
+  --pastel-blue: #DBEAFE;
+  --pastel-green: #D1FAE5;
+  --pastel-yellow: #FEF3C7;
+  --pastel-pink: #FCE7F3;
+  --pastel-gray: #F3F4F6;
+}
+
+/* 부드러운 그림자 */
+.soft-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* 심플한 전환 */
+.smooth-transition {
+  transition: all 0.2s ease;
+}
+
+/* 심플한 버튼 */
+.btn-pastel-primary {
+  background: #E9D5FF;
+  color: #7C3AED;
+  transition: all 0.2s ease;
+}
+
+.btn-pastel-primary:hover {
+  background: #DDD6FE;
+}
+
+/* 파스텔 배지 */
+.badge-pastel-pink {
+  background-color: #FCE7F3;
+  color: #DB2777;
+}
+
+.badge-pastel-purple {
+  background-color: #E9D5FF;
+  color: #7C3AED;
+}
+
+.badge-pastel-blue {
+  background-color: #DBEAFE;
+  color: #2563EB;
+}
+
+.badge-pastel-green {
+  background-color: #D1FAE5;
+  color: #059669;
+}
+
+.badge-pastel-yellow {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+/* 심플한 카드 */
+.card-modern {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #F3F4F6;
+}
+
+/* 입력 필드 */
+.input-modern {
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 10px 14px;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.input-modern:focus {
+  outline: none;
+  border-color: #A78BFA;
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
+}
