@@ -31,7 +31,25 @@ const TrainingModule = {
       this.renderTrainingsPage();
     } catch (error) {
       console.error('Load trainings error:', error);
-      showToast('훈련 정보를 불러오는데 실패했습니다.', 'error');
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      let errorMessage = '훈련 정보를 불러오는데 실패했습니다.';
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showToast(errorMessage, 'error');
+      
+      // 에러가 발생해도 빈 목록으로 표시
+      this.trainings = error.response?.data?.trainings || [];
+      this.departments = [];
+      this.renderTrainingsPage();
     }
   },
   

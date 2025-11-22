@@ -46,10 +46,27 @@ trainings.get('/', requireDepartmentAccess, async (c) => {
     
     const { results } = await db.prepare(query).bind(...params).all();
     
-    return c.json({ trainings: results });
-  } catch (error) {
+    return c.json({ trainings: results || [] });
+  } catch (error: any) {
     console.error('Get trainings error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    console.error('Error details:', {
+      message: error?.message,
+      cause: error?.cause,
+      name: error?.name
+    });
+    
+    // 테이블이 없는 경우를 처리
+    if (error?.message?.includes('no such table: trainings')) {
+      return c.json({ 
+        error: 'Trainings table does not exist. Please run migrations.',
+        trainings: []
+      }, 200);
+    }
+    
+    return c.json({ 
+      error: error?.message || 'Internal server error',
+      trainings: []
+    }, 500);
   }
 });
 
