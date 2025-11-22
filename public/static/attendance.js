@@ -304,7 +304,21 @@ const AttendanceModule = {
       await this.loadAttendancePage();
     } catch (error) {
       console.error('Save bulk attendance error:', error);
-      showToast(error.response?.data?.error || '출석 저장에 실패했습니다.', 'error');
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
+      
+      let errorMessage = '출석 저장에 실패했습니다.';
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showToast(errorMessage, 'error');
     }
   },
   

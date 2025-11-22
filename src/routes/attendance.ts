@@ -201,9 +201,10 @@ attendance.post('/bulk', async (c) => {
   }
   
   return c.json({ message: 'Bulk attendance recorded' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Bulk attendance error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    const errorMessage = error?.message || 'Internal server error';
+    return c.json({ error: errorMessage }, 500);
   }
 });
 
