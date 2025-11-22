@@ -102,28 +102,37 @@ members.get('/next-member-number', async (c) => {
   }
 });
 
-// 특정 교인 상세 조회
-members.get('/:id', async (c) => {
+// 특정 학생 상세 조회
+members.get('/:id', requireDepartmentAccess, async (c) => {
   try {
     const db = c.env.DB;
+    const userDepartmentId = c.get('userDepartmentId');
+    const isSuperAdmin = c.get('isSuperAdmin');
     const id = c.req.param('id');
     
-    // 교인 기본 정보
+    // 학생 기본 정보
     const member = await db.prepare(`
       SELECT 
         m.*,
         f.family_name,
         c.name as class_name,
         c.grade_level,
-        c.teacher_name
+        c.teacher_name,
+        d.name as department_name
       FROM members m
       LEFT JOIN families f ON m.family_id = f.id
       LEFT JOIN classes c ON m.class_id = c.id
+      LEFT JOIN departments d ON m.department_id = d.id
       WHERE m.id = ?
     `).bind(id).first();
     
     if (!member) {
       return c.json({ error: 'Member not found' }, 404);
+    }
+    
+    // 부서 접근 권한 확인
+    if (!isSuperAdmin && userDepartmentId && member.department_id !== userDepartmentId) {
+      return c.json({ error: 'Forbidden: You do not have access to this student' }, 403);
     }
     
     // 소속 구역/소그룹
@@ -191,16 +200,21 @@ members.get('/:id', async (c) => {
   }
 });
 
-// 교인 생성
-members.post('/', async (c) => {
+// 학생 생성
+members.post('/', requireDepartmentAccess, async (c) => {
   try {
     const db = c.env.DB;
+    const userDepartmentId = c.get('userDepartmentId');
+    const isSuperAdmin = c.get('isSuperAdmin');
     const data = await c.req.json();
     
     // 필수 필드 검증
     if (!data.name || !data.member_number) {
       return c.json({ error: 'Missing required fields: name, member_number' }, 400);
     }
+    
+    // 부서 ID 설정 (최고관리자가 아니면 자신의 부서로 고정)
+    const finalDepartmentId = (!isSuperAdmin && userDepartmentId) ? userDepartmentId : (data.department_id || null);
     
     // 생년월일로 학년 자동 계산
     let schoolGrade = null;
@@ -210,7 +224,7 @@ members.post('/', async (c) => {
       schoolGrade = data.school_grade;
     }
     
-    // 교인 레코드 생성
+    // 학생 레코드 생성
     const result = await db.prepare(`
       INSERT INTO members (
         member_number, name, name_english, birth_date, gender, phone, email, address, zip_code,
@@ -218,9 +232,9 @@ members.post('/', async (c) => {
         registration_date, member_status, previous_church, transfer_date,
         family_id, family_role, current_service, service_history,
         photo_url, note, emergency_contact, emergency_contact_name,
-        school_grade, grade_override, class_id
+        school_grade, grade_override, class_id, department_id, parent_name, parent_phone
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.member_number,
       data.name,
@@ -249,7 +263,10 @@ members.post('/', async (c) => {
       data.emergency_contact_name || null,
       schoolGrade,
       data.school_grade ? 1 : 0,  // 수동 설정 여부
-      data.class_id || null
+      data.class_id || null,
+      finalDepartmentId,
+      data.parent_name || null,
+      data.parent_phone || null
     ).run();
     
     if (!result.success) {
@@ -271,12 +288,31 @@ members.post('/', async (c) => {
   }
 });
 
-// 교인 정보 수정
-members.put('/:id', async (c) => {
+// 학생 정보 수정
+members.put('/:id', requireDepartmentAccess, async (c) => {
   try {
     const db = c.env.DB;
+    const userDepartmentId = c.get('userDepartmentId');
+    const isSuperAdmin = c.get('isSuperAdmin');
     const id = c.req.param('id');
     const data = await c.req.json();
+    
+    // 기존 학생 조회
+    const existing = await db.prepare('SELECT * FROM members WHERE id = ?').bind(id).first();
+    
+    if (!existing) {
+      return c.json({ error: 'Member not found' }, 404);
+    }
+    
+    // 부서 접근 권한 확인
+    if (!isSuperAdmin && userDepartmentId && existing.department_id !== userDepartmentId) {
+      return c.json({ error: 'Forbidden: You do not have access to this student' }, 403);
+    }
+    
+    // 부서 변경 권한 확인
+    if (data.department_id && !isSuperAdmin && userDepartmentId && Number(data.department_id) !== userDepartmentId) {
+      return c.json({ error: 'Forbidden: You can only assign students to your department' }, 403);
+    }
     
     const updates: string[] = [];
     const params: any[] = [];
@@ -295,7 +331,7 @@ members.put('/:id', async (c) => {
       'registration_date', 'member_status', 'previous_church', 'transfer_date',
       'family_id', 'family_role', 'current_service', 'service_history',
       'photo_url', 'note', 'emergency_contact', 'emergency_contact_name',
-      'school_grade', 'grade_override', 'class_id'
+      'school_grade', 'grade_override', 'class_id', 'department_id', 'parent_name', 'parent_phone'
     ];
     
     for (const field of allowedFields) {

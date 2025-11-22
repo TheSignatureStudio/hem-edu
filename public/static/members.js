@@ -4,16 +4,23 @@ const MembersModule = {
   currentMembers: [],
   currentMember: null,
   revealedMembers: new Set(), // 가려진 정보를 본 멤버 ID 집합
+  departments: [],
   
   // 학생 목록 로드
   async loadMembersList() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/members`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const [membersRes, departmentsRes] = await Promise.all([
+        axios.get(`${API_URL}/members`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${API_URL}/settings/departments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
       
-      this.currentMembers = response.data.members || [];
+      this.currentMembers = membersRes.data.members || [];
+      this.departments = departmentsRes.data.departments || [];
       this.renderMembersList();
     } catch (error) {
       console.error('Load members error:', error);
@@ -303,15 +310,28 @@ const MembersModule = {
           </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">부서 *</label>
+            <select name="department_id" required class="input-modern w-full" ${!currentUser?.is_super_admin ? 'disabled' : ''}>
+              ${this.departments.map(d => `
+                <option value="${d.id}" ${d.id === (currentUser?.department_id || this.departments[0]?.id) ? 'selected' : ''}>
+                  ${d.name}
+                </option>
+              `).join('')}
+            </select>
+            ${!currentUser?.is_super_admin ? '<input type="hidden" name="department_id" value="' + (currentUser?.department_id || this.departments[0]?.id) + '">' : ''}
+          </div>
+          <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">학년 (자동 계산)</label>
             <input type="text" name="school_grade" class="input-modern w-full" placeholder="생년월일로 자동 계산">
             <p class="text-xs text-gray-500 mt-1">※ 입력하지 않으면 생년월일 기준으로 자동 계산됩니다</p>
           </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">현재 봉사</label>
             <input type="text" name="current_service" class="input-modern w-full">
           </div>
-        </div>
         </div>
         
         <div>
@@ -590,11 +610,17 @@ const MembersModule = {
   async editMember(id) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/members/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const [memberRes, departmentsRes] = await Promise.all([
+        axios.get(`${API_URL}/members/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${API_URL}/settings/departments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
       
-      const member = response.data.member;
+      const member = memberRes.data.member;
+      this.departments = departmentsRes.data.departments || [];
       
       showModal('학생 정보 수정', `
         <form id="edit-member-form" class="space-y-4">
@@ -613,9 +639,37 @@ const MembersModule = {
           
           <div class="grid grid-cols-2 gap-4">
             <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">부서 *</label>
+              <select name="department_id" required class="input-modern w-full" ${!currentUser?.is_super_admin ? 'disabled' : ''}>
+                ${this.departments.map(d => `
+                  <option value="${d.id}" ${d.id === (member.department_id || currentUser?.department_id) ? 'selected' : ''}>
+                    ${d.name}
+                  </option>
+                `).join('')}
+              </select>
+              ${!currentUser?.is_super_admin ? '<input type="hidden" name="department_id" value="' + (member.department_id || currentUser?.department_id) + '">' : ''}
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">부서 *</label>
+              <select name="department_id" required class="input-modern w-full" ${!currentUser?.is_super_admin ? 'disabled' : ''}>
+                ${this.departments.map(d => `
+                  <option value="${d.id}" ${d.id === (member.department_id || currentUser?.department_id) ? 'selected' : ''}>
+                    ${d.name}
+                  </option>
+                `).join('')}
+              </select>
+              ${!currentUser?.is_super_admin ? '<input type="hidden" name="department_id" value="' + (member.department_id || currentUser?.department_id) + '">' : ''}
+            </div>
+            <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">영문 이름</label>
               <input type="text" name="name_english" value="${member.name_english || ''}" class="input-modern w-full">
             </div>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">성별</label>
               <select name="gender" class="input-modern w-full">
