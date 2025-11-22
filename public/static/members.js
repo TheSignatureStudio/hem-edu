@@ -1,11 +1,11 @@
-// 교인 관리 모듈
+// 학생 관리 모듈
 
 const MembersModule = {
   currentMembers: [],
   currentMember: null,
   revealedMembers: new Set(), // 가려진 정보를 본 멤버 ID 집합
   
-  // 교인 목록 로드
+  // 학생 목록 로드
   async loadMembersList() {
     try {
       const token = localStorage.getItem('token');
@@ -17,22 +17,22 @@ const MembersModule = {
       this.renderMembersList();
     } catch (error) {
       console.error('Load members error:', error);
-      showToast('교인 목록을 불러오는데 실패했습니다.', 'error');
+      showToast('학생 목록을 불러오는데 실패했습니다.', 'error');
     }
   },
   
-  // 교인 목록 렌더링
+  // 학생 목록 렌더링
   renderMembersList() {
     const content = document.getElementById('main-content');
     
     content.innerHTML = `
       <div class="mb-8 flex items-center justify-between">
         <div>
-          <h2 class="text-2xl font-bold text-gray-800 mb-2">교인 관리</h2>
-          <p class="text-gray-600">총 ${this.currentMembers.length}명의 교인이 등록되어 있습니다.</p>
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">학생 관리</h2>
+          <p class="text-gray-600">총 ${this.currentMembers.length}명의 학생이 등록되어 있습니다.</p>
         </div>
         <button onclick="MembersModule.showAddModal()" class="btn-pastel-primary px-6 py-3 rounded-lg">
-          <i class="fas fa-plus mr-2"></i>교인 등록
+          <i class="fas fa-plus mr-2"></i>학생 등록
         </button>
       </div>
       
@@ -65,7 +65,7 @@ const MembersModule = {
         </div>
       </div>
       
-      <!-- 교인 목록 테이블 -->
+      <!-- 학생 목록 테이블 -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full">
@@ -90,13 +90,13 @@ const MembersModule = {
     `;
   },
   
-  // 교인 목록 행 렌더링
+  // 학생 목록 행 렌더링
   renderMembersRows() {
     if (this.currentMembers.length === 0) {
       return `
         <tr>
           <td colspan="8" class="px-6 py-8 text-center text-gray-500">
-            등록된 교인이 없습니다.
+            등록된 학생이 없습니다.
           </td>
         </tr>
       `;
@@ -219,11 +219,11 @@ const MembersModule = {
   async showAddModal() {
     const nextNumber = await this.getNextMemberNumber();
     
-    showModal('교인 등록', `
+    showModal('학생 등록', `
       <form id="add-member-form" class="space-y-4">
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">교인번호 *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">학생번호 *</label>
             <input type="text" name="member_number" value="${nextNumber}" required class="input-modern w-full" readonly>
           </div>
           <div>
@@ -253,8 +253,19 @@ const MembersModule = {
             <input type="date" name="birth_date" class="input-modern w-full">
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">연락처</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">학생 연락처</label>
             <input type="tel" name="phone" class="input-modern w-full">
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">부모님 이름</label>
+            <input type="text" name="parent_name" class="input-modern w-full">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">부모님 연락처</label>
+            <input type="tel" name="parent_phone" class="input-modern w-full">
           </div>
         </div>
         
@@ -325,7 +336,7 @@ const MembersModule = {
     });
   },
   
-  // 다음 교인번호 가져오기
+  // 다음 학생번호 가져오기
   async getNextMemberNumber() {
     try {
       const token = localStorage.getItem('token');
@@ -350,12 +361,12 @@ const MembersModule = {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      showToast('교인이 등록되었습니다.', 'success');
+      showToast('학생이 등록되었습니다.', 'success');
       closeModal();
       this.loadMembersList();
     } catch (error) {
       console.error('Add member error:', error);
-      showToast(error.response?.data?.error || '교인 등록에 실패했습니다.', 'error');
+      showToast(error.response?.data?.error || '학생 등록에 실패했습니다.', 'error');
     }
   },
   
@@ -386,7 +397,7 @@ const MembersModule = {
           <i class="fas fa-arrow-left mr-2"></i>목록으로
         </button>
         <div class="flex items-center justify-between">
-          <h2 class="text-2xl font-bold text-gray-800">${member.name} 교인 정보</h2>
+          <h2 class="text-2xl font-bold text-gray-800">${member.name} 학생 정보</h2>
           <button onclick="MembersModule.editMember(${member.id})" class="btn-pastel-primary px-4 py-2 rounded-lg">
             <i class="fas fa-edit mr-2"></i>수정
           </button>
@@ -400,7 +411,7 @@ const MembersModule = {
             <h3 class="text-lg font-bold text-gray-800 mb-4">기본 정보</h3>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <p class="text-sm text-gray-500">교인번호</p>
+                <p class="text-sm text-gray-500">학생번호</p>
                 <p class="text-base font-medium text-gray-900">${member.member_number}</p>
               </div>
               <div>
@@ -432,7 +443,7 @@ const MembersModule = {
               </div>
               ` : ''}
               <div>
-                <p class="text-sm text-gray-500">연락처</p>
+                <p class="text-sm text-gray-500">학생 연락처</p>
                 <div class="flex items-center">
                   <p class="text-base font-medium text-gray-900">
                     ${this.revealedMembers.has(member.id) 
@@ -451,6 +462,32 @@ const MembersModule = {
                   ` : ''}
                 </div>
               </div>
+              ${member.parent_name || member.parent_phone ? `
+              <div>
+                <p class="text-sm text-gray-500">부모님 이름</p>
+                <p class="text-base font-medium text-gray-900">${member.parent_name || '-'}</p>
+              </div>
+              <div>
+                <p class="text-sm text-gray-500">부모님 연락처</p>
+                <div class="flex items-center">
+                  <p class="text-base font-medium text-gray-900">
+                    ${this.revealedMembers.has(member.id) 
+                      ? (member.parent_phone || '-')
+                      : (member.parent_phone ? '***-****-****' : '-')
+                    }
+                  </p>
+                  ${member.parent_phone && !this.revealedMembers.has(member.id) ? `
+                    <button 
+                      onclick="MembersModule.revealMemberInfo(${member.id}, true)"
+                      class="ml-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                      title="가려진 정보보기"
+                    >
+                      <i class="fas fa-eye"></i> 보기
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+              ` : ''}
               <div>
                 <p class="text-sm text-gray-500">이메일</p>
                 <p class="text-base font-medium text-gray-900">
@@ -549,7 +586,7 @@ const MembersModule = {
     `;
   },
   
-  // 교인 수정
+  // 학생 수정
   async editMember(id) {
     try {
       const token = localStorage.getItem('token');
@@ -559,13 +596,13 @@ const MembersModule = {
       
       const member = response.data.member;
       
-      showModal('교인 정보 수정', `
+      showModal('학생 정보 수정', `
         <form id="edit-member-form" class="space-y-4">
           <input type="hidden" name="id" value="${member.id}">
           
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">교인번호</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">학생번호</label>
               <input type="text" value="${member.member_number}" class="input-modern w-full" readonly>
             </div>
             <div>
@@ -725,7 +762,7 @@ const MembersModule = {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      showToast('교인 정보가 수정되었습니다.', 'success');
+      showToast('학생 정보가 수정되었습니다.', 'success');
       closeModal();
       this.loadMembersList();
     } catch (error) {

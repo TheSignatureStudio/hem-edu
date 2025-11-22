@@ -12,8 +12,15 @@ export async function authMiddleware(c: Context<{ Bindings: CloudflareBindings }
   const token = authHeader.substring(7);
   
   try {
-    // 간단한 JWT 디코딩 (실제 프로덕션에서는 서명 검증 필요)
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    // 토큰 디코딩 (Base64 인코딩된 JSON 또는 JWT 형식)
+    let payload;
+    if (token.includes('.')) {
+      // JWT 형식인 경우
+      payload = JSON.parse(atob(token.split('.')[1]));
+    } else {
+      // Base64 인코딩된 JSON인 경우
+      payload = JSON.parse(atob(token));
+    }
     
     // 토큰 만료 확인
     if (payload.exp && payload.exp < Date.now() / 1000) {
@@ -23,11 +30,12 @@ export async function authMiddleware(c: Context<{ Bindings: CloudflareBindings }
     // 사용자 정보를 컨텍스트에 저장
     c.set('userId', payload.userId);
     c.set('userRole', payload.role);
-    c.set('userDepartmentId', payload.departmentId);
+    c.set('userDepartmentId', payload.departmentId || null);
     c.set('isSuperAdmin', payload.isSuperAdmin || false);
     
     await next();
   } catch (error) {
+    console.error('Auth middleware error:', error);
     return c.json({ error: 'Unauthorized: Invalid token' }, 401);
   }
 }
