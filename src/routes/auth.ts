@@ -16,9 +16,9 @@ auth.post('/login', async (c) => {
     const db = c.env.DB;
     
     // 사용자 조회 (부서 정보 포함)
-    // department_id와 is_super_admin는 NULL일 수 있으므로 COALESCE 사용
+    // department_id와 is_super_admin는 NULL일 수 있으므로 안전하게 처리
     const user = await db.prepare(
-      'SELECT id, username, password_hash, email, name, role, phone, COALESCE(department_id, NULL) as department_id, COALESCE(is_super_admin, 0) as is_super_admin FROM users WHERE username = ? AND is_active = 1'
+      'SELECT id, username, password_hash, email, name, role, phone, department_id, is_super_admin FROM users WHERE username = ? AND is_active = 1'
     ).bind(username).first();
     
     if (!user) {
