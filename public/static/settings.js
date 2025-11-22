@@ -47,23 +47,40 @@ const SettingsModule = {
             </button>
           </div>
           
-          <div class="space-y-2">
-            ${this.serviceTypes.map(st => `
-              <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                <div class="flex items-center space-x-3">
-                  <i class="fas fa-grip-vertical text-gray-400"></i>
-                  <span class="font-medium text-gray-900">${st.name}</span>
+          <div class="space-y-2 max-h-96 overflow-y-auto">
+            ${(() => {
+              // 부서별로 그룹화
+              const byDepartment = {};
+              this.serviceTypes.forEach(st => {
+                const deptName = st.department_name || '부서 미지정';
+                if (!byDepartment[deptName]) {
+                  byDepartment[deptName] = [];
+                }
+                byDepartment[deptName].push(st);
+              });
+              
+              return Object.entries(byDepartment).map(([deptName, types]) => `
+                <div class="mb-4">
+                  <p class="text-xs font-semibold text-gray-500 mb-2">${deptName}</p>
+                  ${types.map(st => `
+                    <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 mb-2">
+                      <div class="flex items-center space-x-3">
+                        <i class="fas fa-grip-vertical text-gray-400"></i>
+                        <span class="font-medium text-gray-900">${st.name}</span>
+                      </div>
+                      <div class="flex space-x-2">
+                        <button onclick="SettingsModule.editServiceType(${st.id})" class="text-blue-600 hover:text-blue-800 p-1">
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="SettingsModule.deleteServiceType(${st.id})" class="text-red-600 hover:text-red-800 p-1">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  `).join('')}
                 </div>
-                <div class="flex space-x-2">
-                  <button onclick="SettingsModule.editServiceType(${st.id})" class="text-blue-600 hover:text-blue-800 p-1">
-                    <i class="fas fa-edit"></i>
-                  </button>
-                  <button onclick="SettingsModule.deleteServiceType(${st.id})" class="text-red-600 hover:text-red-800 p-1">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </div>
-            `).join('')}
+              `).join('');
+            })()}
             ${this.serviceTypes.length === 0 ? '<p class="text-gray-500 text-sm">등록된 예배 구분이 없습니다.</p>' : ''}
           </div>
         </div>
@@ -139,8 +156,24 @@ const SettingsModule = {
   
   // 예배 구분 추가 모달
   showAddServiceTypeModal() {
+    const defaultDepartmentId = currentUser?.department_id || (this.departments.length > 0 ? this.departments[0].id : null);
+    
     showModal('예배 구분 추가', `
       <form id="add-service-type-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">부서</label>
+          <select name="department_id" class="input-modern w-full" ${!currentUser?.is_super_admin ? 'disabled' : ''}>
+            <option value="">전체 (통합예배)</option>
+            ${this.departments.map(d => `
+              <option value="${d.id}" ${d.id === defaultDepartmentId ? 'selected' : ''}>
+                ${d.name}
+              </option>
+            `).join('')}
+          </select>
+          ${!currentUser?.is_super_admin ? '<input type="hidden" name="department_id" value="' + defaultDepartmentId + '">' : ''}
+          <p class="text-xs text-gray-500 mt-1">※ 통합예배는 부서를 선택하지 않으면 됩니다.</p>
+        </div>
+        
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">예배 구분 이름 *</label>
           <input type="text" name="name" required class="input-modern w-full" placeholder="예: 주일학교 예배">
@@ -194,6 +227,20 @@ const SettingsModule = {
     
     showModal('예배 구분 수정', `
       <form id="edit-service-type-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">부서</label>
+          <select name="department_id" class="input-modern w-full" ${!currentUser?.is_super_admin ? 'disabled' : ''}>
+            <option value="">전체 (통합예배)</option>
+            ${this.departments.map(d => `
+              <option value="${d.id}" ${d.id === serviceType.department_id ? 'selected' : ''}>
+                ${d.name}
+              </option>
+            `).join('')}
+          </select>
+          ${!currentUser?.is_super_admin ? '<input type="hidden" name="department_id" value="' + (serviceType.department_id || currentUser?.department_id) + '">' : ''}
+          <p class="text-xs text-gray-500 mt-1">※ 통합예배는 부서를 선택하지 않으면 됩니다.</p>
+        </div>
+        
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">예배 구분 이름 *</label>
           <input type="text" name="name" value="${serviceType.name}" required class="input-modern w-full">

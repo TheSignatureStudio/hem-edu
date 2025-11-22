@@ -47,13 +47,19 @@ settings.get('/service-types', async (c) => {
     const db = c.env.DB;
     
     const { results } = await db.prepare(`
-      SELECT * FROM service_types WHERE is_active = 1 ORDER BY display_order
+      SELECT 
+        st.*,
+        d.name as department_name
+      FROM service_types st
+      LEFT JOIN departments d ON st.department_id = d.id
+      WHERE st.is_active = 1 
+      ORDER BY st.display_order, d.name
     `).all();
     
-    return c.json({ serviceTypes: results });
+    return c.json({ serviceTypes: results || [] });
   } catch (error) {
     console.error('Get service types error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    return c.json({ error: 'Internal server error', serviceTypes: [] }, 500);
   }
 });
 
@@ -61,16 +67,16 @@ settings.get('/service-types', async (c) => {
 settings.post('/service-types', async (c) => {
   try {
     const db = c.env.DB;
-    const { name, display_order } = await c.req.json();
+    const { name, display_order, department_id } = await c.req.json();
     
     if (!name) {
       return c.json({ error: 'Name is required' }, 400);
     }
     
     const result = await db.prepare(`
-      INSERT INTO service_types (name, display_order)
-      VALUES (?, ?)
-    `).bind(name, display_order || 999).run();
+      INSERT INTO service_types (name, display_order, department_id)
+      VALUES (?, ?, ?)
+    `).bind(name, display_order || 999, department_id || null).run();
     
     return c.json({ 
       message: 'Service type added successfully',
@@ -90,7 +96,7 @@ settings.put('/service-types/:id', async (c) => {
   try {
     const db = c.env.DB;
     const id = c.req.param('id');
-    const { name, display_order, is_active } = await c.req.json();
+    const { name, display_order, is_active, department_id } = await c.req.json();
     
     const updates: string[] = [];
     const params: any[] = [];
@@ -98,6 +104,11 @@ settings.put('/service-types/:id', async (c) => {
     if (name !== undefined) {
       updates.push('name = ?');
       params.push(name);
+    }
+    
+    if (department_id !== undefined) {
+      updates.push('department_id = ?');
+      params.push(department_id || null);
     }
     if (display_order !== undefined) {
       updates.push('display_order = ?');
