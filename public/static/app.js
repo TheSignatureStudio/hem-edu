@@ -322,15 +322,7 @@ async function loadUsers(content) {
 
 // 시스템 설정 로드
 async function loadSettings(content) {
-  content.innerHTML = `
-    <div class="mb-8">
-      <h2 class="text-2xl font-bold text-gray-800 mb-2">시스템 설정</h2>
-      <p class="text-gray-600">교회 정보 및 시스템 설정을 관리합니다.</p>
-            </div>
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <p class="text-gray-600">시스템 설정 기능은 구현 중입니다.</p>
-        </div>
-    `;
+  await SettingsModule.loadSettingsPage();
 }
 
 // ==================== 유틸리티 함수 ====================

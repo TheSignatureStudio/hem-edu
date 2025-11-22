@@ -2,19 +2,30 @@
 
 const AttendanceModule = {
   currentDate: new Date().toISOString().split('T')[0],
-  currentServiceType: '주일예배',
+  currentServiceType: '주일학교 예배',
   members: [],
+  serviceTypes: [],
   
   // 출석 관리 페이지 로드
   async loadAttendancePage() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${API_URL}/attendance/by-date?date=${this.currentDate}&service_type=${this.currentServiceType}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const [attendanceRes, serviceTypesRes] = await Promise.all([
+        axios.get(
+          `${API_URL}/attendance/by-date?date=${this.currentDate}&service_type=${this.currentServiceType}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ),
+        axios.get(`${API_URL}/settings/service-types`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
       
-      this.members = response.data.members || [];
+      this.members = attendanceRes.data.members || [];
+      this.serviceTypes = serviceTypesRes.data.serviceTypes || [];
+      
+      // 기본 예배 구분 설정
+      if (this.serviceTypes.length > 0 && !this.currentServiceType) {
+        this.currentServiceType = this.serviceTypes[0].name;
+      }
+      
       this.renderAttendancePage();
     } catch (error) {
       console.error('Load attendance error:', error);
@@ -54,11 +65,11 @@ const AttendanceModule = {
               class="input-modern w-full"
               onchange="AttendanceModule.changeServiceType(this.value)"
             >
-              <option value="주일예배" ${this.currentServiceType === '주일예배' ? 'selected' : ''}>주일예배</option>
-              <option value="수요예배" ${this.currentServiceType === '수요예배' ? 'selected' : ''}>수요예배</option>
-              <option value="새벽예배" ${this.currentServiceType === '새벽예배' ? 'selected' : ''}>새벽예배</option>
-              <option value="금요예배" ${this.currentServiceType === '금요예배' ? 'selected' : ''}>금요예배</option>
-              <option value="특별집회" ${this.currentServiceType === '특별집회' ? 'selected' : ''}>특별집회</option>
+              ${this.serviceTypes.map(st => `
+                <option value="${st.name}" ${this.currentServiceType === st.name ? 'selected' : ''}>
+                  ${st.name}
+                </option>
+              `).join('')}
             </select>
           </div>
           <div class="flex items-end">

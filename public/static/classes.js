@@ -3,18 +3,21 @@
 const ClassesModule = {
   currentClasses: [],
   allMembers: [],
+  allTeachers: [],
   
   // 반 목록 로드
   async loadClassesList() {
     try {
       const token = localStorage.getItem('token');
-      const [classesRes, membersRes] = await Promise.all([
+      const [classesRes, membersRes, teachersRes] = await Promise.all([
         axios.get(`${API_URL}/classes`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/members`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_URL}/members`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/settings/teachers`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       
       this.currentClasses = classesRes.data.classes || [];
       this.allMembers = membersRes.data.members || [];
+      this.allTeachers = teachersRes.data.teachers || [];
       this.renderClassesList();
     } catch (error) {
       console.error('Load classes error:', error);
@@ -97,6 +100,9 @@ const ClassesModule = {
             <button onclick="ClassesModule.editClass(${cls.id})" class="text-green-600 hover:text-green-800 p-1">
               <i class="fas fa-edit text-sm"></i>
             </button>
+            <button onclick="ClassesModule.deleteClass(${cls.id})" class="text-red-600 hover:text-red-800 p-1">
+              <i class="fas fa-trash text-sm"></i>
+            </button>
           </div>
         </div>
         
@@ -158,14 +164,25 @@ const ClassesModule = {
           </div>
         </div>
         
-        <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">담당 선생님</label>
+          <select id="teacher-select" class="input-modern w-full" onchange="ClassesModule.selectTeacher(this.value)">
+            <option value="">선택하세요</option>
+            ${this.allTeachers.map(t => `
+              <option value="${t.id}" data-phone="${t.phone || ''}">${t.name} ${t.position ? `(${t.position})` : ''}</option>
+            `).join('')}
+            <option value="custom">직접 입력</option>
+          </select>
+        </div>
+        
+        <div id="teacher-custom-fields" style="display: none;" class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">담당 선생님</label>
-            <input type="text" name="teacher_name" class="input-modern w-full" placeholder="이름">
+            <label class="block text-sm font-medium text-gray-700 mb-2">선생님 이름</label>
+            <input type="text" id="teacher-name-input" name="teacher_name" class="input-modern w-full">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">선생님 연락처</label>
-            <input type="tel" name="teacher_phone" class="input-modern w-full" placeholder="010-1234-5678">
+            <input type="tel" id="teacher-phone-input" name="teacher_phone" class="input-modern w-full">
           </div>
         </div>
         
@@ -200,6 +217,56 @@ const ClassesModule = {
       e.preventDefault();
       this.handleAddClass(new FormData(e.target));
     });
+  },
+  
+  // 선생님 선택 처리 (추가 모달)
+  selectTeacher(value) {
+    const customFields = document.getElementById('teacher-custom-fields');
+    const select = document.getElementById('teacher-select');
+    const nameInput = document.getElementById('teacher-name-input');
+    const phoneInput = document.getElementById('teacher-phone-input');
+    
+    if (value === 'custom') {
+      customFields.style.display = 'grid';
+      if (nameInput) nameInput.value = '';
+      if (phoneInput) phoneInput.value = '';
+    } else if (value) {
+      customFields.style.display = 'grid';
+      const selectedOption = select.options[select.selectedIndex];
+      const teacherName = selectedOption.text.split('(')[0].trim();
+      const teacherPhone = selectedOption.dataset.phone || '';
+      
+      if (nameInput) nameInput.value = teacherName;
+      if (phoneInput) phoneInput.value = teacherPhone;
+    } else {
+      customFields.style.display = 'none';
+    }
+  },
+  
+  // 선생님 선택 처리 (수정 모달)
+  selectTeacherEdit(value) {
+    const customFields = document.getElementById('teacher-custom-fields-edit');
+    const select = document.getElementById('teacher-select-edit');
+    const nameInput = document.getElementById('teacher-name-input-edit');
+    const phoneInput = document.getElementById('teacher-phone-input-edit');
+    
+    if (value === 'custom') {
+      customFields.style.display = 'grid';
+      if (nameInput) nameInput.value = '';
+      if (phoneInput) phoneInput.value = '';
+    } else if (value) {
+      customFields.style.display = 'grid';
+      const selectedOption = select.options[select.selectedIndex];
+      const teacherName = selectedOption.text.split('(')[0].trim();
+      const teacherPhone = selectedOption.dataset.phone || '';
+      
+      if (nameInput) nameInput.value = teacherName;
+      if (phoneInput) phoneInput.value = teacherPhone;
+    } else {
+      customFields.style.display = 'none';
+      if (nameInput) nameInput.value = '';
+      if (phoneInput) phoneInput.value = '';
+    }
   },
   
   // 반 추가 처리
@@ -552,14 +619,26 @@ const ClassesModule = {
             </div>
           </div>
           
-          <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">담당 선생님</label>
+            <select id="teacher-select-edit" class="input-modern w-full" onchange="ClassesModule.selectTeacherEdit(this.value)">
+              <option value="">선택하세요</option>
+              ${this.allTeachers.map(t => {
+                const isSelected = classInfo.teacher_name === t.name;
+                return `<option value="${t.id}" data-phone="${t.phone || ''}" ${isSelected ? 'selected' : ''}>${t.name} ${t.position ? `(${t.position})` : ''}</option>`;
+              }).join('')}
+              <option value="custom">직접 입력</option>
+            </select>
+          </div>
+          
+          <div id="teacher-custom-fields-edit" class="grid grid-cols-2 gap-4" style="${classInfo.teacher_name ? 'display: grid;' : 'display: none;'}">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">담당 선생님</label>
-              <input type="text" name="teacher_name" value="${classInfo.teacher_name || ''}" class="input-modern w-full">
+              <label class="block text-sm font-medium text-gray-700 mb-2">선생님 이름</label>
+              <input type="text" id="teacher-name-input-edit" name="teacher_name" value="${classInfo.teacher_name || ''}" class="input-modern w-full">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">선생님 연락처</label>
-              <input type="tel" name="teacher_phone" value="${classInfo.teacher_phone || ''}" class="input-modern w-full">
+              <input type="tel" id="teacher-phone-input-edit" name="teacher_phone" value="${classInfo.teacher_phone || ''}" class="input-modern w-full">
             </div>
           </div>
           
@@ -644,6 +723,26 @@ const ClassesModule = {
     } catch (error) {
       console.error('Update grades error:', error);
       showToast('학년 갱신에 실패했습니다.', 'error');
+    }
+  },
+  
+  // 반 삭제
+  async deleteClass(id) {
+    if (!confirm('이 반을 삭제하시겠습니까?\n(학생이 배정된 반은 삭제할 수 없습니다)')) {
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/classes/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      showToast('반이 삭제되었습니다.', 'success');
+      this.loadClassesList();
+    } catch (error) {
+      console.error('Delete class error:', error);
+      showToast(error.response?.data?.error || '반 삭제에 실패했습니다.', 'error');
     }
   }
 };

@@ -131,12 +131,13 @@ app.get('/', (c) => {
         </div>
         
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/app.js?v=202511221600" defer></script>
-        <script src="/static/members.js?v=202511221600" defer></script>
-        <script src="/static/classes.js?v=202511221600" defer></script>
-        <script src="/static/groups.js?v=202511221600" defer></script>
-        <script src="/static/attendance.js?v=202511221600" defer></script>
-        <script src="/static/counseling.js?v=202511221600" defer></script>
+        <script src="/static/app.js?v=202511221700" defer></script>
+        <script src="/static/members.js?v=202511221700" defer></script>
+        <script src="/static/classes.js?v=202511221700" defer></script>
+        <script src="/static/groups.js?v=202511221700" defer></script>
+        <script src="/static/attendance.js?v=202511221700" defer></script>
+        <script src="/static/counseling.js?v=202511221700" defer></script>
+        <script src="/static/settings.js?v=202511221700" defer></script>
     </body>
     </html>
   `);
