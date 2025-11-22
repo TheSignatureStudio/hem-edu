@@ -632,8 +632,19 @@ const MembersModule = {
               <input type="date" name="birth_date" value="${member.birth_date || ''}" class="input-modern w-full">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">연락처</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">학생 연락처</label>
               <input type="tel" name="phone" value="${member.phone || ''}" class="input-modern w-full">
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">부모님 이름</label>
+              <input type="text" name="parent_name" value="${member.parent_name || ''}" class="input-modern w-full">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">부모님 연락처</label>
+              <input type="tel" name="parent_phone" value="${member.parent_phone || ''}" class="input-modern w-full">
             </div>
           </div>
           
