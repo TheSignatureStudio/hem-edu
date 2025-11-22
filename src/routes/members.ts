@@ -39,11 +39,9 @@ members.get('/', requireDepartmentAccess, async (c) => {
       } else if (department_id) {
         query += ' AND m.department_id = ?';
         params.push(Number(department_id));
-      } else {
-        // userDepartmentId가 없고 department_id도 없으면 빈 결과 반환
-        // (부서가 할당되지 않은 사용자는 자신의 부서 학생만 볼 수 있음)
-        query += ' AND 1=0'; // 항상 false 조건으로 빈 결과 반환
       }
+      // userDepartmentId가 없고 department_id도 없으면 모든 학생 조회
+      // (부서가 할당되지 않은 사용자는 임시로 모든 학생 조회 가능)
     } else if (department_id) {
       // 최고관리자는 특정 부서 필터링 가능
       query += ' AND m.department_id = ?';
