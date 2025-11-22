@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@hono/vite-build": "^1.2.0",
+    "@hono/vite-cloudflare-pages": "^0.4.3",
     "@hono/vite-dev-server": "^0.18.2",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
